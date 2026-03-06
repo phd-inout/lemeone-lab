@@ -1,0 +1,42 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Founder {
+  id        String   @id @default(uuid())
+  name      String   @default("Unknown")
+  // 6 dimensions
+  logic     Int      @default(50)
+  charisma  Int      @default(50)
+  focus     Int      @default(50)
+  stamina   Int      @default(50)
+  vision    Int      @default(50)
+  luck      Int      @default(50)
+  
+  company   Company?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String   @default("My Startup")
+  cash      Int      @default(100000)
+  progress  Int      @default(0)
+  
+  founderId String   @unique
+  founder   Founder  @relation(fields: [founderId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
