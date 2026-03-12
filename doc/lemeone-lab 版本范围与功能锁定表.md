@@ -142,7 +142,7 @@ $ sprint --weeks 4
 | 随机事件 V2（语义驱动 + pgvector） | **Beta** | V1概率引擎先跑 |
 | Aha-Moment 接 RAG（Graph-RAG / Vector RAG） | **Beta** | 先验证叙事方向 |
 | Aha-Moment 4 种全实现（只做 hard_truth） | **Alpha（其余 3 种）** | 分批实现 |
-| 异步仿真（Upstash Workflow，现实时间挂钩） | **Beta** | Pre-alpha 同步模拟即可 |
+| 异步仿真（1s=1h 标准主频，本地引擎实现） | **Beta** | Pre-alpha 同步模拟即可 |
 | 排行榜 + Graveyard | **V1.0** | 需要用户数据支撑 |
 | Supabase Realtime 全局广播 | **V1.0** | 需要多用户场景 |
 | DLC 插件化架构代码实现 | **V1.0** | 平台级能力 |

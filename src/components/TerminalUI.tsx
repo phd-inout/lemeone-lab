@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
-import '@xterm/xterm/css/xterm.css';
+import { Terminal, IDisposable } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
 import { useLemeoneStore } from '@/lib/store';
 import { IndustryType, BusinessModel, FounderBackground, DIM, CompanyStage } from '@/lib/engine/types';
 import { generateGapAnalysis } from '@/lib/engine/cortex-ai';
@@ -108,12 +107,19 @@ ${C.bold}指令列表${C.reset}
   ${C.green}legacy${C.reset}
     查看已积累的 Lab Points 与历代创始人的死亡纪事（Graveyard）。
 
+  ${C.green}top${C.reset} / ${C.green}rank${C.reset}
+    连接 CORTEX 全球节点，拉取名人堂（效能榜单 Top 20）。
+
+  ${C.green}graveyard${C.reset} ${C.gray}[--id <rehearsal_id>]${C.reset}
+    查看死难者名录（最近阵亡的创始人清单）。带 id 时可请求 AI 尸检复盘。
+
   ${C.green}clear${C.reset}  /  ${C.green}help${C.reset}  /  ${C.green}quit${C.reset}
 `
 
 export default function TerminalUI() {
     const termRef = useRef<HTMLDivElement>(null)
     const xtermRef = useRef<Terminal | null>(null)
+    const fitAddonRef = useRef<FitAddon | null>(null)
     const inputBufRef = useRef('')          // 用 ref 避免闭包陷阱
     const awaitingIdeaRef = useRef(false)  // 是否在等待 idea 输入
     const idleTimerRef = useRef<NodeJS.Timeout | null>(null) // idle timer
@@ -121,7 +127,7 @@ export default function TerminalUI() {
     const { gameState, isRunning, initFounder, initCompany, sprintWeeks, hire, fire, pivot, playCard, dividend, parseNews } = useLemeoneStore()
 
     // ======= 自动补全词典 =======
-    const COMMANDS = ['init-founder', 'init-company', 'sprint', 'status', 'hire', 'fire', 'pivot', 'play-card', 'cards', 'analyze-gap', 'dividend', 'news', 'legacy', 'clear', 'help', 'quit']
+    const COMMANDS = ['init-founder', 'init-company', 'sprint', 'status', 'hire', 'fire', 'pivot', 'play-card', 'cards', 'analyze-gap', 'dividend', 'news', 'legacy', 'top', 'rank', 'graveyard', 'clear', 'help', 'quit']
 
     // 重置 Idle Timer
     const resetIdleTimer = useCallback(() => {
@@ -148,7 +154,10 @@ export default function TerminalUI() {
 
     // 显示 prompt
     const showPrompt = useCallback(() => {
-        xtermRef.current?.write('\r\n> ')
+        const t = xtermRef.current
+        if (!t) return
+        t.write('\r\n> ')
+        t.scrollToBottom()
         resetIdleTimer()
     }, [resetIdleTimer])
 
@@ -164,6 +173,18 @@ export default function TerminalUI() {
         const localStore = useLemeoneStore.getState()
         const gameState = localStore.gameState
         const isRunning = localStore.isRunning
+
+        // ── cancel / stop ──────────────────────────────────────────
+        if (cmd === 'cancel' || cmd === 'stop') {
+            if (isRunning) {
+                useLemeoneStore.setState({ isRunning: false })
+                print(`${C.yellow}\n[SYSTEM] 接收到中断信号，正在安全终止当前进程...${C.reset}`)
+            } else {
+                print(`${C.gray}没有正在进行的进程可以终止。${C.reset}`)
+            }
+            showPrompt()
+            return
+        }
 
         // ── init-founder ──────────────────────────────────────────
         if (cmd === 'init-founder') {
@@ -195,7 +216,10 @@ export default function TerminalUI() {
                 print(`  FIN: ${vector[3].toFixed(0)}  OPS: ${vector[4].toFixed(0)}  CHA: ${vector[5].toFixed(0)}`)
                 print(`  带宽上限: ${gs.founder.bwMax}  初始压力: ${gs.founder.bwStress}`)
             }
-            print(`\n${C.gray}下一步：输入 init-company --industry AI_SAAS${C.reset}`)
+            print(`\n${C.gray}下一步：输入 init-company 并填写参数：`)
+            print(`  ${C.green}init-company --name \"公司名\" --industry AI_SAAS --model SUBSCRIPTION_SAAS${C.reset}`)
+            print(`${C.gray}  --industry 可选: AI_SAAS | DTC_ECOM | WEB3_GAMING | BIOTECH | CREATOR_ECONOMY | B2B_ENTERPRISE`)
+            print(`  --model   可选: SUBSCRIPTION_SAAS | USAGE_BASED | MARKETPLACE | ONE_TIME_LICENSE | FREEMIUM${C.reset}`)
             showPrompt()
             return
         }
@@ -222,8 +246,9 @@ export default function TerminalUI() {
             const industry = industryMap[args.industry?.toUpperCase() ?? ''] ?? 'AI_SAAS'
             const model = modelMap[args.model?.toUpperCase() ?? ''] ?? 'SUBSCRIPTION_SAAS'
 
-            print(`\n公司名称: ${companyName}  行业: ${industry}  模式: ${model}`)
-            print(`${C.yellow}请描述你的产品 idea（一句话，或直接回车跳过）：${C.reset}`)
+            print(`\n${C.cyan}公司: ${companyName}  行业: ${industry}  商业模式: ${model}${C.reset}`)
+            print(`${C.gray}(如需更改，可在下方 idea 处直接回车，稍后用 pivot 切换赛道)${C.reset}`)
+            print(`${C.yellow}请描述你的产品 idea（一句话，或直接回车跳过）：${C.reset}`)            
 
             // 进入 idea 等待状态
             awaitingIdeaRef.current = true
@@ -559,6 +584,73 @@ ${reqStr}
             return
         }
 
+        // ── top / rank ───────────────────────────────────────────
+        if (cmd === 'top' || cmd === 'rank') {
+            print(`\n${C.cyan}╔═ 名人堂 (The Efficiency Peak) ═══════╗${C.reset}`)
+            print(`${C.gray}正在连接 CORTEX 节点拉取全球排行...${C.reset}`)
+            fetch('/api/leaderboard').then(res => res.json()).then(data => {
+                if (data.success && data.data) {
+                    data.data.forEach((r: any, idx: number) => {
+                        const rankMsg = `#${idx + 1} [${r.founderName}] ${r.stage} | VpB: ${r.efficiencyScore.toFixed(2)}`
+                        print(`${C.cyan}║${C.reset}  ${rankMsg}`)
+                    })
+                    print(`${C.cyan}╚══════════════════════════════════════╝${C.reset}`)
+                } else {
+                    print(`${C.red}拉取排行榜失败: ${data.error || 'Unknown Error'}${C.reset}`)
+                    print(`${C.cyan}╚══════════════════════════════════════╝${C.reset}`)
+                }
+                showPrompt()
+            }).catch(e => {
+                print(`${C.red}网络连接错误: ${String(e)}${C.reset}`)
+                showPrompt()
+            })
+            return // wait for async response to show prompt
+        }
+
+        // ── graveyard ────────────────────────────────────────────
+        if (cmd === 'graveyard') {
+            if (args.id) {
+                print(`\n${C.gray}正在连接尸检终端拉取 #${args.id} 的记录...${C.reset}`)
+                fetch(`/api/graveyard/autopsy?id=${args.id}`).then(res => res.json()).then(data => {
+                    if (data.success && data.data && data.data.report) {
+                        print(`${C.cyan}╔═ 深度尸检诊断 (AI Autopsy) ══════════╗${C.reset}`)
+                        data.data.report.split('\n').forEach((line: string) => {
+                            print(`${C.magenta}║${C.reset}  ${line}`)
+                        })
+                        print(`${C.cyan}╚══════════════════════════════════════╝${C.reset}`)
+                    } else {
+                        print(`${C.red}无法生成尸检报告: ${data.error || 'Unknown Error'}${C.reset}`)
+                    }
+                    showPrompt()
+                }).catch(e => {
+                    print(`${C.red}网络连接错误: ${String(e)}${C.reset}`)
+                    showPrompt()
+                })
+            } else {
+                print(`\n${C.cyan}╔═ 死难者名录 (The Graveyard) ═════════╗${C.reset}`)
+                print(`${C.gray}正在同步最新阵亡的创始人清单...${C.reset}`)
+                fetch('/api/graveyard').then(res => res.json()).then(data => {
+                    if (data.success && data.data && data.data.length > 0) {
+                        data.data.slice(0, 15).forEach((r: any) => {
+                            const shortId = r.id.split('-')[0]
+                            const msg = `[${shortId}] ${r.founderName} 卒于 ${r.stage} (${r.daysSurvived}天) - ${r.failedReason}`
+                            print(`${C.cyan}║${C.reset}  ${msg}`)
+                        })
+                        print(`${C.cyan}╚══════════════════════════════════════╝${C.reset}`)
+                        print(`${C.gray}Tips: 输入 graveyard --id <ID前段> 查看深度尸检报告 (施工中)${C.reset}`)
+                    } else {
+                        print(`${C.cyan}║${C.reset}  ${C.gray}目前尚无牺牲者记录...${C.reset}`)
+                        print(`${C.cyan}╚══════════════════════════════════════╝${C.reset}`)
+                    }
+                    showPrompt()
+                }).catch(e => {
+                    print(`${C.red}网络连接错误: ${String(e)}${C.reset}`)
+                    showPrompt()
+                })
+            }
+            return
+        }
+
         // ── 其他 ─────────────────────────────────────────────────
         if (cmd === 'help') { print(HELP_TEXT); showPrompt(); return }
         if (cmd === 'clear') { term.clear(); showPrompt(); return }
@@ -615,6 +707,7 @@ ${reqStr}
             fontFamily: '"JetBrains Mono", "Fira Code", monospace',
             fontSize: 14,
             lineHeight: 1.4,
+            scrollback: 5000, // 足够大的回滚缓冲区
             cursorBlink: true,
             cursorStyle: 'block',
         })
@@ -622,8 +715,17 @@ ${reqStr}
         const fitAddon = new FitAddon()
         term.loadAddon(fitAddon)
         term.open(termRef.current)
-        fitAddon.fit()
+        fitAddonRef.current = fitAddon
         xtermRef.current = term
+        
+        // 使用 ResizeObserver 替代原始的 window resize 监听
+        const resizeObserver = new ResizeObserver(() => {
+            // 确保 DOM 容器有高度以后再 fit
+            if (termRef.current && termRef.current.clientHeight > 0) {
+                requestAnimationFrame(() => fitAddon.fit());
+            }
+        });
+        resizeObserver.observe(termRef.current);
 
         const handleResize = () => fitAddon.fit()
         window.addEventListener('resize', handleResize)
@@ -691,10 +793,13 @@ ${reqStr}
         resetIdleTimer()
 
         return () => {
-            window.removeEventListener('resize', handleResize)
+            resizeObserver.disconnect()
             if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
             term.dispose()
             xtermRef.current = null
+            if (termRef.current) {
+                termRef.current.innerHTML = ''
+            }
         }
     }, [])  // 只初始化一次
 
@@ -704,6 +809,14 @@ ${reqStr}
             ; (xtermRef.current as any)._handleCommand = handleCommand
             ; (xtermRef.current as any)._handleIdeaInput = handleIdeaInput
     }, [handleCommand, handleIdeaInput])
+
+    // stage 变化时（如 ASCII header 显隐），重新适配终端大小
+    useEffect(() => {
+        if (!fitAddonRef.current) return
+        // 短暂延迟以等待 DOM 重排完成
+        const t = setTimeout(() => fitAddonRef.current?.fit(), 50)
+        return () => clearTimeout(t)
+    }, [gameState?.company?.stage])
 
     const renderHeaderAscii = (stage: string) => {
         switch (stage) {
@@ -756,7 +869,7 @@ ${reqStr}
             )}
             <div
                 ref={termRef}
-                className="w-full flex-1"
+                className="w-full flex-1 overflow-hidden"
                 style={{ background: '#0a0f14' }}
             />
         </div>

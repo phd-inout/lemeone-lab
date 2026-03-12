@@ -4,6 +4,8 @@ import { useLemeoneStore } from '@/lib/store';
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import ResonanceRadar from '@/components/ResonanceRadar';
+import { createClient } from '@/utils/supabase/client';
+import { logout } from '@/app/login/actions';
 
 const TerminalUI = dynamic(() => import('@/components/TerminalUI'), { ssr: false });
 
@@ -13,7 +15,17 @@ export default function Home() {
   const company = gameState?.company;
 
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const fetchUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserEmail(user.email ?? null);
+    };
+    fetchUser();
+  }, []);
 
   if (!mounted) return null;
 
@@ -54,16 +66,26 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <a className="text-sm hover:text-primary transition-colors hidden sm:block font-mono" href="#">STATUS</a>
-            <a className="text-sm bg-transparent text-primary border border-border-dark px-4 py-1.5 rounded hover:bg-primary hover:text-black transition-all font-mono" href="#">
-              [ AUTH ]
-            </a>
+            {userEmail ? (
+              <div className="flex items-center gap-3 bg-black border border-primary px-4 py-1.5 rounded">
+                <span className="text-sm text-primary font-mono">{userEmail}</span>
+                <span className="text-gray-600 font-mono">|</span>
+                <button onClick={() => logout()} className="text-sm text-gray-400 hover:text-red-500 transition-colors font-mono">
+                  [ LOGOUT ]
+                </button>
+              </div>
+            ) : (
+              <a className="text-sm bg-transparent text-primary border border-border-dark px-4 py-1.5 rounded hover:bg-primary hover:text-black transition-all font-mono" href="/login">
+                [ AUTH ]
+              </a>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Terminal Section */}
-        <section className="bg-black rounded border border-border-dark shadow-sm overflow-hidden flex flex-col h-[550px]">
+        <section className="bg-black rounded border border-border-dark shadow-sm overflow-hidden flex flex-col" style={{height: 600}}>
           <div className="bg-[#151515] border-b border-border-dark px-4 py-2 flex items-center gap-2 shrink-0">
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-[#ff5f56]/80"></div>
@@ -72,8 +94,10 @@ export default function Home() {
             </div>
             <div className="mx-auto text-xs text-slate-500 font-display">root@lemeone-lab:~</div>
           </div>
-          <div className="flex-1 overflow-hidden font-display text-sm md:text-base relative p-2 md:p-4 bg-black">
-            <TerminalUI />
+          <div className="relative flex-1 min-h-0">
+            <div style={{position: 'absolute', inset: 0}}>
+              <TerminalUI />
+            </div>
           </div>
         </section>
 

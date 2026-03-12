@@ -207,20 +207,29 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     console.error("V2 Vector Event Engine Failed, fallback to V1:", e)
                 }
 
-                for (let week = 1; week <= weeks; week++) {
-                    current.company.weekNumber++
+                // === 异步时间流速设定 ===
+                const TICK_RATE = 1000 // 1s = 1h
+                let currentTickRate = TICK_RATE
+                let initialDrift = current.company.resonance ?? 1.0
+                const targetHours = weeks * 168
+                
+                let accProgress = 0
+                let accCash = 0
 
-                    // 事件选取 (尝试从语义池中抽取，若失败/冷却则 fallback 到 V1 本地)
-                    let event: import('@/lib/engine/types').GameEvent | null = null
-                    if (semanticPool.length > 0) {
-                        event = pickSemanticEvent(semanticPool, current)
+                for (let hour = 1; hour <= targetHours; hour++) {
+                    if (!get().isRunning) {
+                        onLine(`\n\x1b[33m[SYSTEM] Sprint 强行中断。\x1b[0m`)
+                        break
                     }
-                    if (!event) {
-                        event = await pickEventForWeek(current)
-                    }
-                    if (event) current = applyEvent(event, current)
 
-                    // 数值步进
+                    // 阈值熔断检查
+                    if (initialDrift - current.company.resonance > 0.15) {
+                        currentTickRate = 4000
+                        onLine(`\n\x1b[31m[WARNING] 市场共鸣度大跌！已降速至 1s=4h。输入 cancel 进行撤回决策。\x1b[0m`)
+                        initialDrift = current.company.resonance // 防刷
+                    }
+
+                    // --- 每小时数值步进 ---
                     const outputRes = calculateResonanceOutput(
                         current.founder.vector,
                         current.company.marketVector,
@@ -228,124 +237,118 @@ export const useLemeoneStore = create<LemeoneStore>()(
                         current.founder.age,
                         current.company.staff
                     )
-                    const progressDelta = outputRes.progressDelta
-
-                    const newTechDebt = stepTechDebt(current.company.techDebt, 1.0)
-                    const newMRR = calcMRR(current, mrrMulti)
-
-                    // Receivables (应收款槽账期风险模拟)
-                    const currentReceivables = current.company.receivables + newMRR
-                    const collectionRate = 0.4 + Math.random() * 0.2
-                    const collectedCash = Math.floor(currentReceivables * collectionRate)
-                    const newReceivables = currentReceivables - collectedCash
-
+                    const progressHourly = outputRes.progressDelta / 168
+                    const techDebtHourly = (stepTechDebt(current.company.techDebt, intensity, current.company.staff.length) - current.company.techDebt) / 168
+                    
                     const burnRate = calcBurnRate(current)
-                    const cashDelta = collectedCash - burnRate
+                    // 现金流折算到每小时
+                    const currentReceivables = current.company.receivables + calcMRR(current, mrrMulti)
+                    const collectionRate = 0.4 + Math.random() * 0.2
+                    const collectedCashWeekly = Math.floor(currentReceivables * collectionRate)
+                    const cashDeltaHourly = (collectedCashWeekly - burnRate) / 168
 
-                    const newMarketVector = nextMarketDrift(current.company.marketVector, current.company.industry)
+                    current.company.devProgress = Math.min(100, current.company.devProgress + progressHourly)
+                    current.company.cash += cashDeltaHourly
+                    current.company.techDebt = Math.max(0, Math.min(100, current.company.techDebt + techDebtHourly))
+                    current.company.resonance = outputRes.resonance
 
-                    current = {
-                        ...current,
-                        company: {
-                            ...current.company,
-                            devProgress: Math.min(100, current.company.devProgress + progressDelta),
-                            cash: current.company.cash + cashDelta,
-                            mrr: newMRR,
-                            receivables: newReceivables,
-                            techDebt: newTechDebt,
-                            marketVector: newMarketVector,
-                            resonance: outputRes.resonance,
+                    accProgress += progressHourly
+                    accCash += cashDeltaHourly
+
+                    // 呼吸式日志采样（每 24 虚拟小时输出，即每天一次）
+                    if (hour % 24 === 0) {
+                        const cashSign = accCash >= 0 ? '+' : ''
+                        onLine(`[Day ${Math.floor(hour / 24).toString().padStart(2, '0')} / Hr ${hour.toString().padStart(3, '0')}] 进度: +${accProgress.toFixed(1)}% | 现金: ${cashSign}¥${Math.floor(accCash).toLocaleString()} | Res: ${(current.company.resonance*100).toFixed(0)}%`)
+                        accProgress = 0
+                        accCash = 0
+                    }
+
+                    // 每周进行结算 (168小时)
+                    if (hour % 168 === 0) {
+                        current.company.weekNumber++
+                        const week = current.company.weekNumber
+
+                        // 抽事件
+                        let event: import('@/lib/engine/types').GameEvent | null = null
+                        if (semanticPool.length > 0) event = pickSemanticEvent(semanticPool, current)
+                        if (!event) event = await pickEventForWeek(current)
+                        if (event) {
+                            current = applyEvent(event, current)
+                            onLine(`\n  \x1b[35m[EVENT] ⚡ ${event.name}\x1b[0m`)
                         }
-                    }
 
-                    // Burnout update based on intensity
-                    const stressDelta = intensity > 1.2 ? 25 : intensity > 1.0 ? 15 : -10
-                    current.founder.bwStress = Math.min(100, Math.max(0, current.founder.bwStress + stressDelta))
-                    let burnoutTriggered = false
-                    if (current.founder.bwStress > 95) {
-                        current.founder.bwStressStreak++
-                        if (current.founder.bwStressStreak >= 4 && (current.founder.age >= 35 || intensity > 1.0)) {
-                            burnoutTriggered = true
-                            current.founder.bwStressStreak = 0
-                            current.founder.bwStress = 50
-                            
-                            const dimIndex = Math.floor(Math.random() * 6)
-                            const dimNames = ['MKT', 'TEC', 'LRN', 'FIN', 'OPS', 'CHA']
-                            const dimName = dimNames[dimIndex]
-                            const oldVal = current.founder.vector[dimIndex]
-                            const dropAmount = Math.floor(Math.random() * 11) + 5
-                            current.founder.vector[dimIndex] = Math.max(20, current.founder.vector[dimIndex] - dropAmount)
-                            current.company.lastBurnoutDrop = { dim: dimName, dropAmount, oldVal }
-                        }
-                    } else {
-                        current.founder.bwStressStreak = 0
-                    }
-
-                    // Ops Debt Entropy Tracker
-                    const entropy = current.founder.vector[DIM.TEC] / Math.max(1, current.founder.vector[DIM.OPS])
-                    if (entropy > 3.5) {
-                        current.company.opsDebtStreak++
-                    } else {
-                        current.company.opsDebtStreak = 0
-                    }
-
-                    // 发牌逻辑 (LRN 每周基础发牌率，上限 5 张)
-                    let newCardReceived: ActionCard | undefined
-                    if (current.company.actionCards.length < 5) {
-                        const lrn = current.founder.vector[DIM.LRN]
-                        if (Math.random() * 100 < (lrn * 0.5)) {
-                            const types: ActionCardType[] = ['GEEK_SPRINT', 'VIRAL_MARKETING', 'TECH_REFACTOR']
-                            const cType = types[Math.floor(Math.random() * types.length)]
-                            const cardInfo: Record<ActionCardType, { name: string, desc: string }> = {
-                                'GEEK_SPRINT': { name: '极客冲刺', desc: '下周进度提升，但积攒大量技术债并增加大量压力' },
-                                'VIRAL_MARKETING': { name: '病毒式营销', desc: '强制增加账面资金与 MRR，大幅消耗带宽压力' },
-                                'TECH_REFACTOR': { name: '架构重构', desc: '立即降低 20 点技术债，需占用大量带宽' }
+                        // Burnout
+                        const stressDelta = intensity > 1.2 ? 25 : intensity > 1.0 ? 15 : -10
+                        current.founder.bwStress = Math.min(100, Math.max(0, current.founder.bwStress + stressDelta))
+                        let burnoutTriggered = false
+                        if (current.founder.bwStress > 95) {
+                            current.founder.bwStressStreak++
+                            if (current.founder.bwStressStreak >= 4 && (current.founder.age >= 35 || intensity > 1.0)) {
+                                burnoutTriggered = true
+                                current.founder.bwStressStreak = 0
+                                current.founder.bwStress = 50
+                                const dimIndex = Math.floor(Math.random() * 6)
+                                const dimNames = ['MKT', 'TEC', 'LRN', 'FIN', 'OPS', 'CHA']
+                                const oldVal = current.founder.vector[dimIndex]
+                                const dropAmount = Math.floor(Math.random() * 11) + 5
+                                current.founder.vector[dimIndex] = Math.max(20, current.founder.vector[dimIndex] - dropAmount)
+                                current.company.lastBurnoutDrop = { dim: dimNames[dimIndex], dropAmount, oldVal }
+                                onLine(`\n  \x1b[31m⚠️ BURNOUT 触发！属性遭受不可逆损伤！\x1b[0m`)
                             }
-                            newCardReceived = { id: uuidv4().substring(0, 8), type: cType, ...cardInfo[cType] }
-                            current.company.actionCards.push(newCardReceived)
+                        } else {
+                            current.founder.bwStressStreak = 0
+                        }
+
+                        // Ops Debt Entropy Tracker
+                        const entropy = current.founder.vector[DIM.TEC] / Math.max(1, current.founder.vector[DIM.OPS])
+                        if (entropy > 3.5) current.company.opsDebtStreak++
+                        else current.company.opsDebtStreak = 0
+
+                        // 发牌
+                        if (current.company.actionCards.length < 5) {
+                            if (Math.random() * 100 < (current.founder.vector[DIM.LRN] * 0.5)) {
+                                const types: ActionCardType[] = ['GEEK_SPRINT', 'VIRAL_MARKETING', 'TECH_REFACTOR']
+                                const cType = types[Math.floor(Math.random() * types.length)]
+                                const cInfo = {
+                                    'GEEK_SPRINT': { name: '极客冲刺', desc: '强推进度' },
+                                    'VIRAL_MARKETING': { name: '病毒式营销', desc: '增加MRR' },
+                                    'TECH_REFACTOR': { name: '架构重构', desc: '减债' }
+                                }
+                                current.company.actionCards.push({ id: uuidv4().substring(0, 8), type: cType, ...cInfo[cType] })
+                            }
+                        }
+
+                        // 更新每周结算数值
+                        current.company.marketVector = nextMarketDrift(current.company.marketVector, current.company.industry, current.company.rivals)
+                        current.company.mrr = calcMRR(current, mrrMulti)
+                        // 应收账款重置
+                        current.company.receivables = (current.company.receivables + current.company.mrr) - collectedCashWeekly
+
+                        const weekLog: WeekLog = {
+                            week, progressDelta: progressHourly * 168, cashDelta: cashDeltaHourly * 168,
+                            techDebtDelta: techDebtHourly * 168, event: event ?? undefined, narrative: ''
+                        }
+
+                        const narrative = await generateWeekNarrative(current, weekLog, event ?? undefined).catch(() => `Week ${week} OK`)
+                        weekLog.narrative = narrative + (burnoutTriggered ? ' ⚠️ BURNOUT' : '')
+                        weekLogs.push(weekLog)
+
+                        // 只有新的一周结算时或者有故事时输出叙事
+                        onLine(`  \x1b[36m${narrative}\x1b[0m\n`)
+
+                        const go = checkGameOver(current)
+                        if (go) {
+                            gameOver = go
+                            break
                         }
                     }
 
-                    const weekLog: WeekLog = {
-                        week,
-                        progressDelta,
-                        cashDelta,
-                        techDebtDelta: newTechDebt - state.company.techDebt,
-                        event: event ?? undefined,
-                        narrative: '',
-                    }
-                    if (burnoutTriggered) {
-                        weekLog.narrative += ' ⚠️ BURNOUT'
-                    }
-
-                    // AI 叙事（单独调用，失败不阻断）
-                    const narrative = await generateWeekNarrative(current, weekLog, event ?? undefined)
-                        .catch(() => `Week ${week}：推进中...`)
-                    weekLog.narrative = narrative
-                    weekLogs.push(weekLog)
-
-                    // 终端输出
-                    const cashSign = cashDelta >= 0 ? '+' : ''
-                    const techDebtStr = newTechDebt > 70 ? ` ⚠️ 技术债 ${newTechDebt.toFixed(0)}` : ''
-                    onLine(`\n[Week ${week}/${weeks}] 🔧`)
-                    onLine(`  进度: +${progressDelta.toFixed(1)}%  →  ${current.company.devProgress.toFixed(1)}%`)
-                    onLine(`  现金: ${cashSign}¥${cashDelta.toLocaleString()}  (剩余 ¥${current.company.cash.toLocaleString()})${techDebtStr}`)
-                    if (burnoutTriggered) onLine(`  \x1b[31m⚠️ BURNOUT 触发！属性遭受不可逆损伤！\x1b[0m`)
-                    if (event) onLine(`  [EVENT] ⚡ ${event.name}`)
-                    if (newCardReceived) onLine(`  \x1b[33m[灵感] 获得行动卡：${newCardReceived.name}\x1b[0m`)
-                    onLine(`  ${narrative}`)
-
-                    // Game Over 检查
-                    const go = checkGameOver(current)
-                    if (go) {
-                        gameOver = go
-                        current.isFailed = true
-                        current.failureReason = go.reason
-                        break
-                    }
+                    // 更新 UI 状态并推迟下一个小时
+                    set({ gameState: current })
+                    await new Promise(r => setTimeout(r, currentTickRate))
                 }
 
-                // Sprint 总结
+                // Sprint 总结阶段
                 const totalProg = weekLogs.reduce((s, w) => s + w.progressDelta, 0)
                 const expected = weeks * 8
                 const pct = ((totalProg / expected) * 100).toFixed(0)
