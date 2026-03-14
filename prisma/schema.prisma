@@ -7,189 +7,69 @@ generator client {
 }
 
 datasource db {
-  // Prisma 7: URL 配置移到 prisma.config.ts，这里只保留 provider
   provider   = "postgresql"
   extensions = [vector]
 }
 
 // ============================================================
-// User — 玩家账号 (绑定 Supabase Auth auth.users)
+// User — 玩家账号
 // ============================================================
 model User {
-  id        String   @id // 对应 Supabase auth.users 的 id (UUID)
+  id        String   @id
   email     String   @unique
   username  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rehearsals         Rehearsal[]
-  leaderboardEntries LeaderboardEntry[]
-  achievements       Achievement[]
+  rehearsals Rehearsal[]
 }
 
 // ============================================================
-// Rehearsal — 每一局模拟的完整记录
+// Rehearsal — 每一局模拟的完整记录 (2.0 商业重力沙盒版)
 // ============================================================
 model Rehearsal {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 玩家标识（未登录时用 sessionId，登录后用 userId）
   sessionId String
   userId    String?
   user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  // 创始人快照（JSON，含 6 维向量 + 背景）
-  founderJson Json
+  // 12 维产品向量快照
+  productVector Json
 
-  // 公司快照（JSON，含行业/商业模式/stage 等）
-  companyJson Json
+  // 战略资产 (Strategic Assets) - 存储生成的 Markdown 内容
+  // 包含: PROPOSAL, BACKLOG, MARKET_FEEDBACK, STRESS_TEST_REPORT
+  assets Json @default("{}")
 
-  // Idea Calibration 结果
-  ideaScore Int?
-  ideaJson  Json?
-
-  // 游戏进程
+  // 模拟运行数据
+  cash         Float @default(100000)
+  techDebt     Float @default(0)
+  weekNumber   Int   @default(0)
   currentStage String @default("SEED")
-  weekNumber   Int    @default(0)
 
-  // 经营日志（JSON 数组，每条含 week/narrative/event）
-  logsJson Json @default("[]")
+  // 历史快照记录 (JOURNAL.md 的数据源)
+  historyJson Json @default("[]")
 
   // 结局
   isFailed      Boolean @default(false)
   failureReason String?
-  failedAtStage String?
-  failedAtWeek  Int?
 
-  // Roguelike 遗产积分
-  legacyPoints Int @default(0)
-
-// 关联
-  leaderboardEntry LeaderboardEntry?
-  staff            Staff[]
-  productLines     ProductLine[]
-  achievements     Achievement[]
+  productLines ProductLine[]
 }
 
 // ============================================================
-// LeaderboardEntry — 排行榜与死难者名录
-// ============================================================
-model LeaderboardEntry {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-
-  userId      String? // 玩家标识外键
-  user        User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  founderName String
-  archetype   String // 人生背景类型 (如 FRESH_GRAD)
-  stage       String // 达到/失败时的阶段 (如 SEED)
-
-  // 核心榜单数据
-  valuation       Float @default(0) // 估值天梯
-  efficiencyScore Float @default(0) // 效能巅峰 (VpB 值)
-  daysSurvived    Int   @default(0) // 坚韧传说 (存活周数)
-
-  // The Graveyard 数据
-  isFailed     Boolean @default(false)
-  failedReason String? // 失败原因，供复盘查阅
-
-  // 其他配置
-  isPublic Boolean @default(true)
-
-  rehearsalId String    @unique
-  rehearsal   Rehearsal @relation(fields: [rehearsalId], references: [id], onDelete: Cascade)
-}
-
-// ============================================================
-// Staff — 人力资源与关键人物风险
-// ============================================================
-model Staff {
-  id            String  @id @default(uuid())
-  rehearsalId   String
-  role          String // DEV / MKT / OPS / SALES / AI_AGENT
-  talent        Int     @default(60)
-  loyalty       Int     @default(80)
-  salary        Float
-  weeksEmployed Int     @default(0)
-  isKeyPerson   Boolean @default(false)
-  firedAt       Int? // 离职时的游戏周数，null 表示仍在职
-
-  rehearsal Rehearsal @relation(fields: [rehearsalId], references: [id], onDelete: Cascade)
-}
-
-// ============================================================
-// ProductLine — 多产品线管理（包含对应的市场与业务模型）
+// ProductLine — 多产品线管理
 // ============================================================
 model ProductLine {
   id               String @id @default(uuid())
   rehearsalId      String
-  name             String? // 产品名称或 idea 描述
-  industry         String // IndustryType
-  businessModel    String // BusinessModel
-  volatility       Float  @default(0.5)
-  pivotCount       Int    @default(0) // PIVOT 次数（每次消耗资源）
+  name             String?
+  industry         String
   
-  // 产品双轨制数据
-  techProgress     Float  @default(0) // 技术开发进度
-  productMaturity  Float  @default(0) // 产品 PMF 成熟度
-  
-  // 多产品调度状态
-  isFocal          Boolean @default(true) // 是否为当前研发与测试资源聚焦点
-  isClosed         Boolean @default(false) // 是否已通过 prod 关停该条线
+  // 12 维产品向量
+  vector Json
 
   rehearsal Rehearsal @relation(fields: [rehearsalId], references: [id], onDelete: Cascade)
-}
-
-// ============================================================
-// GameEventTemplate — 语义驱动随机事件池 (V2)
-// ============================================================
-model GameEventTemplate {
-  id              String   @id @default(uuid())
-  name            String
-  stage           String[] // e.g. ["SEED", "MVP"]
-  category        String
-  baseProbability Float
-  effectsJson     Json
-  narrativePrompt String
-  cooldownWeeks   Int
-
-  // Semantic Vector (gemini-embedding-001 outputs 3072 dims)
-  embedding Unsupported("vector(3072)")?
-}
-
-// ============================================================
-// BusinessCase — Aha-Moment 商业案例知识库 (RAG)
-// ============================================================
-model BusinessCase {
-  id      String   @id @default(uuid())
-  title   String
-  content String
-  tags    String[]
-
-  // Semantic Vector
-  embedding Unsupported("vector(3072)")?
-}
-
-// ============================================================
-// Achievement — 核心里程碑与隐藏成就系统
-// ============================================================
-model Achievement {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  rehearsalId String?
-  rehearsal   Rehearsal? @relation(fields: [rehearsalId], references: [id], onDelete: SetNull)
-
-  achieveId   String   // 成就内部 ID (如: INITIAL_PROFIT)
-  name        String   // 成就展示名
-  category    String   // 类别 (BUSINESS, ALGORITHM, SURVIVAL, AHA_HIDDEN)
-  labPoints   Int      @default(0)
-
-  // 保证每个用户一种成就只能解锁一次
-  @@unique([userId, achieveId])
 }

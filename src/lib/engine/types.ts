@@ -1,274 +1,110 @@
-// ============================================================
-// lemeone-lab Core Types
-// 6维向量系统 — 与 DRTA 共鸣引擎完全兼容
-// ============================================================
+/**
+ * Lemeone-lab 2.0: Core DNA & Vector Types
+ * 12-Dimensional Gravity Sandbox Model
+ */
 
-// 6维创始人属性向量：[MKT, TEC, LRN, FIN, OPS, CHA]
-// 原始值范围：20-100（不归一化，归一化在 engine 内部处理）
-export type FounderVector = [number, number, number, number, number, number]
+// 12-D Normalized Vector (0.0 - 1.0)
+export type Vector12D = [
+  number, number, number, number, // Product Core: Performance, Depth, Interaction, Stability
+  number, number, number, number, // Market: Friction, Unique, Social, Consistency
+  number, number, number, number  // Future: Ecosystem, Barriers, Global, Curve
+]
 
-// 维度索引常量
 export const DIM = {
-    MKT: 0, // 营销能力
-    TEC: 1, // 技术/AI驾驭
-    LRN: 2, // 基础学习力
-    FIN: 3, // 财务感知
-    OPS: 4, // 运营/流程
-    CHA: 5, // 魅力/抗压
+  // Product Core (D1-D4)
+  PERF: 0,
+  DEPTH: 1,
+  INTERACT: 2,
+  STABLE: 3,
+  // Market (D5-D8)
+  FRICTION: 4,
+  UNIQUE: 5,
+  SOCIAL: 6,
+  CONSISTENCY: 7,
+  // Future (D9-D12)
+  ECO: 8,
+  BARRIER: 9,
+  GLOBAL: 10,
+  CURVE: 11,
 } as const
 
-export type CompanyStage = 'SEED' | 'MVP' | 'PMF' | 'SCALE' | 'IPO' | 'TITAN' | 'LIFESTYLE_EMPIRE'
-
-export type IndustryType =
-    | 'AI_SAAS'
-    | 'DTC_ECOM'
-    | 'WEB3_GAMING'
-    | 'BIOTECH'
-    | 'CREATOR_ECONOMY'
-    | 'B2B_ENTERPRISE'
-
-export type BusinessModel =
-    | 'SUBSCRIPTION_SAAS'
-    | 'USAGE_BASED'
-    | 'MARKETPLACE'
-    | 'ONE_TIME_LICENSE'
-    | 'FREEMIUM'
-
-export type FounderBackground =
-    | 'FRESH_GRAD'        // 学院派黑客
-    | 'CORPORATE_REFUGEE' // 大厂逃离者
-    | 'SERIAL_PRO'       // 中年连续创业者
-    | 'INDUSTRY_VETERAN' // 行业老兵
-    | 'PLAIN_STARTER'    // 白手起Family
-
-// ============================================================
-// 行业权重矩阵（Pre-alpha 伪向量引擎核心常量）
-// 每行：[MKT, TEC, LRN, FIN, OPS, CHA]，加总 = 1.0
-// ============================================================
-export const INDUSTRY_WEIGHTS: Record<IndustryType, FounderVector> = {
-    AI_SAAS: [0.10, 0.50, 0.15, 0.10, 0.05, 0.10],
-    DTC_ECOM: [0.40, 0.10, 0.10, 0.15, 0.15, 0.10],
-    WEB3_GAMING: [0.15, 0.35, 0.15, 0.10, 0.10, 0.15],
-    BIOTECH: [0.05, 0.55, 0.20, 0.10, 0.05, 0.05],
-    CREATOR_ECONOMY: [0.45, 0.05, 0.10, 0.05, 0.10, 0.25],
-    B2B_ENTERPRISE: [0.20, 0.15, 0.10, 0.20, 0.25, 0.10],
+/**
+ * Agent DNA: The atomic unit of the 10,000 population
+ */
+export interface AgentDNA {
+  id: string
+  vector: Vector12D
+  resonance: number // Cached result from last collision
+  isOutlier?: boolean // 黑天鹅样本标记 (从调研文档极端案例生成)
 }
 
-// 行业波动率（影响随机事件振幅）
-export const INDUSTRY_VOLATILITY: Record<IndustryType, number> = {
-    AI_SAAS: 0.08,
-    DTC_ECOM: 0.12,
-    WEB3_GAMING: 0.20,
-    BIOTECH: 0.15,
-    CREATOR_ECONOMY: 0.15,
-    B2B_ENTERPRISE: 0.06,
+/**
+ * Product & Competition
+ */
+export interface ProductVector {
+  name: string
+  vector: Vector12D
+  price: number // Maps to index 0 (v_price)
 }
 
-// 年龄段效能乘数
-export type AgeGroup = '20s' | '30s' | '40s' | '50plus'
-export const AGE_MULTIPLIERS: Record<AgeGroup, { tec: number; mkt: number; ops: number }> = {
-    '20s': { tec: 1.2, mkt: 0.9, ops: 0.9 },
-    '30s': { tec: 1.0, mkt: 1.0, ops: 1.1 },
-    '40s': { tec: 0.85, mkt: 1.2, ops: 1.2 },
-    '50plus': { tec: 0.7, mkt: 1.1, ops: 1.3 },
+export type CompanyStage = 'SEED' | 'MVP' | 'PMF' | 'SCALE' | 'IPO' | 'TITAN'
+
+/**
+ * Business Model: Market Resolution Tiers
+ */
+export type UserTier = 'FREE' | 'PRO' | 'ULTRA' | 'ENTERPRISE'
+
+export const TIER_LIMITS: Record<UserTier, { maxAgents: number; maxAuditsPerWeek: number }> = {
+  FREE: { maxAgents: 100, maxAuditsPerWeek: 1 },
+  PRO: { maxAgents: 10000, maxAuditsPerWeek: 10 },
+  ULTRA: { maxAgents: 50000, maxAuditsPerWeek: 50 },
+  ENTERPRISE: { maxAgents: 200000, maxAuditsPerWeek: 999 },
 }
 
-// ============================================================
-// 创始人建模
-// ============================================================
-export interface Founder {
-    name: string
-    age: number
-    ageGroup: AgeGroup
-    background: FounderBackground
-    vector: FounderVector   // [MKT, TEC, LRN, FIN, OPS, CHA] 原始值 20-100
-    bwMax: number           // 带宽上限（Neural Bandwidth）
-    bwUsed: number          // 本周已用带宽
-    bwStress: number        // 压力值 0-100（高于 80 进入警告区）
-    bwStressStreak: number  // 连续高压周数（触发 Burnout 用的计数器）
-    wealth: number          // 创始人个人财富（来自公司分红）
+/**
+ * Rehearsal State (System 1)
+ */
+export interface SandboxState {
+  id: string
+  tier: UserTier // Current simulation resolution tier
+  weekNumber: number
+  cash: number
+  burnRate: number // Monthly base operating cost (user defined)
+  techDebt: number
+  currentStage: CompanyStage
+  productVector: Vector12D
+  agents: AgentDNA[] // The 10,000 population
+  
+  // Statistical snapshots
+  metrics: {
+    avgResonance: number
+    conversionRate: number
+    mrr: number
+    churnRate: number
+  }
+
+  // Strategic Assets (System 2)
+  assets: {
+    proposal: string
+    backlog: string
+    marketFeedback: string
+    stressTestReport: string
+  }
 }
 
-// ============================================================
-// Idea Calibration（AI 评估产品想法）
-// ============================================================
-export interface IdeaCalibration {
-    painPointAcuity: number  // 0-30
-    marketTiming: number  // 0-25
-    founderFit: number  // 0-25
-    differentiationEdge: number  // 0-20
-    total: number  // 0-100
-
-    // 映射到引擎参数
-    mrrGrowthMultiplier: number  // 0.7 ~ 1.4
-    initialMoat: number  // 0 ~ 30
-    attributeBonus: Partial<Record<keyof typeof DIM, number>>
+/**
+ * Seed Definition for Population Generation (Dual-Track)
+ */
+export interface PopulationSeed {
+  mean: Vector12D     // 统计学中心点 (Manual Input + AI Inference)
+  std: Vector12D      // 分布方差 (细节缺失程度)
+  weights: Vector12D  // 决策权重 (Decision Weight Distribution)
+  outliers: Vector12D[] // 调研文档中的极端负面/正面案例
+  evidences?: Record<string, string> // 审计证据追溯 (维度 -> 证据原文)
 }
 
-// ============================================================
-// 公司与游戏状态
-// ============================================================
-export interface Staff {
-    id: string
-    role: keyof typeof DIM
-    talent: number       // 0-100 换算为矩阵的增益
-    salary: number       // 每周薪资
-    bwBonus: number      // 为创始人提供的带宽减轻（如果有）
-    weeksEmployed: number
-}
-
-export interface CompanyState {
-    name: string
-    industry: IndustryType
-    businessModel: BusinessModel
-    stage: CompanyStage
-
-    cash: number
-    burnRate: number        // 每周固定支出
-    mrr: number             // 月经常性收入（实际作单周流水基数计算）
-    receivables: number     // 待回收账款（应收款槽，引入账期风险）
-    devProgress: number     // 0-100，产品进度
-    moat: number            // 0-100，护城河
-    techDebt: number        // 0-100，技术债
-    valuation: number       // 估值
-
-    weekNumber: number      // 当前游戏第几周
-    cashCriticalStreak: number  // cash ≤ 0 持续周数（破产倒计时）
-    opsDebtStreak: number       // TEC/OPS 比例失衡的连续周数
-    isPostBadDecision: boolean  // 是否刚经历过严重的进度落后或失败Pivot (用于触发 Lucky Pivot)
-
-    ideaScore?: IdeaCalibration
-    marketVector: FounderVector // [MKT, TEC, LRN, FIN, OPS, CHA] 随时间漂移的市场需求方向 (0-1)
-    resonance: number       // 缓存的当前共鸣度计算结果 (0-1)
-
-    staff: Staff[]          // 公司雇员
-    actionCards: ActionCard[] // 玩家拥有的行动卡牌
-    dividendsPaid: number   // 累计分红金额
-
-    lastBurnoutDrop?: { dim: string; dropAmount: number; oldVal: number } // 触发 burnout 时的损失记录
-
-    // Sprint 6: 晋级后期与对手
-    reputation: number      // 行业声誉 0-100 (IPO 需要 > 70)
-    marketShare: number     // 市场占有率 0-100 (TITAN 需要 > 35)
-    rivals: Rival[]         // 竞争对手列表
-}
-
-export interface Rival {
-    id: string
-    name: string
-    threatLevel: number     // 0-100 威胁度
-    vector: FounderVector   // 竞争对手的打法向量（会牵引市场向量偏移）
-}
-
-// ============================================================
-// 行动卡牌 (Action Cards)
-// ============================================================
-export type ActionCardType = 'GEEK_SPRINT' | 'VIRAL_MARKETING' | 'TECH_REFACTOR'
-export interface ActionCard {
-    id: string
-    type: ActionCardType
-    name: string
-    desc: string
-}
-
-// ============================================================
-// 游戏完整状态（贯穿整个模拟）
-// ============================================================
-export interface GameState {
-    id: string              // Rehearsal ID
-    founder: Founder
-    company: CompanyState
-    isFailed: boolean
-    failureReason?: FailureReason
-    logs: WeekLog[]
-}
-
-// ============================================================
-// Sprint 结果
-// ============================================================
-export interface WeekLog {
-    week: number
-    progressDelta: number
-    cashDelta: number
-    techDebtDelta: number
-    event?: GameEvent
-    narrative: string       // AI 生成的叙事（或占位文本）
-}
-
-export interface SprintResult {
-    finalState: GameState
-    log: WeekLog[]
-    ahaMoment?: AhaMoment
-    promotion?: { from: CompanyStage; to: CompanyStage }
-    gameOver?: GameOverResult
-}
-
-// ============================================================
-// Game Over
-// ============================================================
-export type FailureReason =
-    | 'CASH_BANKRUPT'
-    | 'FOUNDER_COLLAPSE'
-    | 'MARKET_DEATH'
-    | 'FORCED_EXIT'
-    | 'LIFESTYLE_VICTORY'
-
-export interface GameOverResult {
-    isFailed: boolean
-    reason: FailureReason
-    failedAtStage: CompanyStage
-    failedAtWeek: number
-    aiPostMortem?: string
-    legacyPoints: number // 结算得分 (Lab Points)
-}
-
-// ============================================================
-// 遗产系统 (Roguelike Progression)
-// ============================================================
-export interface LegacyRecord {
-    id: string
-    founderName: string
-    finalStage: CompanyStage
-    weeksAlive: number
-    legacyPoints: number
-    reason: FailureReason
-}
-
-// ============================================================
-// 随机事件
-// ============================================================
-export type EventCategory = 'MARKET' | 'TECH' | 'PEOPLE' | 'FINANCE' | 'BLACK_SWAN'
-
-export interface EventEffect {
-    target: keyof CompanyState | 'bwStress' | 'founderAttr'
-    delta: number
-    attrIndex?: number  // 当 target = 'founderAttr' 时，指定维度索引
-}
-
-export interface GameEvent {
-    id: string
-    name: string
-    stage: CompanyStage[]
-    category: EventCategory
-    baseProbability: number
-    effects: EventEffect[]
-    narrativePrompt: string
-    isGameOver?: boolean
-    cooldownWeeks: number
-    probabilityModifiers?: {     // 高分属性降低负面随机事件概率
-        targetDim: keyof typeof DIM
-        threshold: number       // 对应维度能力若 >= 该值
-        multiplier: number      // 则 baseProbability 乘以此系数，如 0.2
-    }[]
-}
-
-// ============================================================
-// Aha-Moment
-// ============================================================
-export type AhaMomentType = 'HARD_TRUTH' | 'OPS_DEBT_EXPLOSION' | 'BURNOUT_INSIGHT' | 'LUCKY_PIVOT'
-
-export interface AhaMoment {
-    type: AhaMomentType
-    insight: string       // AI 生成的顿悟内容
-    referenceCase: string // 参考案例（Segway / WeWork / Quibi）
+export interface AuditReport {
+  stressPoint: string
+  dominantDNA: string
+  backlogDraft: string
 }

@@ -1,529 +1,159 @@
 import {
-  GameState,
-  SprintResult,
-  WeekLog,
-  CompanyState,
-  Founder,
-  FounderVector,
-  IndustryType,
-  INDUSTRY_WEIGHTS,
-  AGE_MULTIPLIERS,
-  AgeGroup,
-  GameOverResult,
-  FailureReason,
-  CompanyStage,
-  Staff,
-  DIM,
+  Vector12D,
+  AgentDNA,
+  SandboxState,
+  PopulationSeed,
 } from './types'
+import { v4 as uuidv4 } from 'uuid'
 
-// ============================================================
-// DRTA 共鸣引擎体系 (Alpha)
-// 公式：O = ||state|| × cos(state, V_market) × Φ(e)
-// ============================================================
+/**
+ * System 1: DRTA Gravity Engine
+ * Optimized DRTA 2.1: Weighted Resonance & Black Swan Logic
+ */
 
-function getAgeGroup(age: number): AgeGroup {
-  if (age < 30) return '20s'
-  if (age < 40) return '30s'
-  if (age < 50) return '40s'
-  return '50plus'
+// Cosine Similarity with Weights
+export function calculateCosineSimilarity(v1: Vector12D, v2: Vector12D, weights?: Vector12D): number {
+  let dotProduct = 0
+  let mag1 = 0
+  let mag2 = 0
+  for (let i = 0; i < 12; i++) {
+    const w = weights ? weights[i] : 1
+    dotProduct += (v1[i] * v2[i] * w)
+    mag1 += v1[i] * v1[i]
+    mag2 += v2[i] * v2[i]
+  }
+  const denominator = Math.sqrt(mag1) * Math.sqrt(mag2)
+  return denominator === 0 ? 0 : dotProduct / denominator
 }
 
-export function nextMarketDrift(current: FounderVector, industry: IndustryType, rivals: import('./types').Rival[] = []): FounderVector {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { INDUSTRY_VOLATILITY, DIM } = require('./types');
-  const lambda = INDUSTRY_VOLATILITY[industry] ?? 0.1;
-  let newVector = current.map(v => {
-    const drift = (Math.random() - 0.5) * lambda;
-    return Math.max(0.01, Math.min(1.0, v + drift));
-  }) as FounderVector;
+/**
+ * The Collision Loop: 10,000 agents x Product Vector
+ * Formula: R_i = SharpenedCosSim(V_p, V_u, W) * DistancePenalty * TechDebtPenalty
+ */
+export function runCollision(
+  productVector: Vector12D,
+  techDebt: number,
+  population: AgentDNA[],
+  userWeights: Vector12D = [1,1,1,1,1,1,1,1,1,1,1,1]
+): AgentDNA[] {
+  const lambda = 0.08
+  const baseTechPenalty = Math.exp(-lambda * (techDebt / 100))
 
-  if (rivals.length > 0) {
-    let [rmkt, rtec, rlrn, rfin, rops, rcha] = [0, 0, 0, 0, 0, 0];
-    let totalThreat = 0;
-    rivals.forEach(r => {
-      rmkt += r.vector[DIM.MKT] * r.threatLevel;
-      rtec += r.vector[DIM.TEC] * r.threatLevel;
-      rlrn += r.vector[DIM.LRN] * r.threatLevel;
-      rfin += r.vector[DIM.FIN] * r.threatLevel;
-      rops += r.vector[DIM.OPS] * r.threatLevel;
-      rcha += r.vector[DIM.CHA] * r.threatLevel;
-      totalThreat += r.threatLevel;
-    });
+  return population.map(agent => {
+    // 1. Weighted Similarity
+    const cosSim = calculateCosineSimilarity(productVector, agent.vector, userWeights)
+    const sharpenedSim = Math.pow(Math.max(0, cosSim), 3)
 
-    if (totalThreat > 0) {
-      const rVecNormalized = [
-        rmkt / (100 * totalThreat), // FounderVector values are 0-100, market vector is 0-1.
-        rtec / (100 * totalThreat),
-        rlrn / (100 * totalThreat),
-        rfin / (100 * totalThreat),
-        rops / (100 * totalThreat),
-        rcha / (100 * totalThreat),
-      ];
-      const pullFactor = 0.05; // 5% pull per week towards the weighted average of rivals
-      newVector = newVector.map((v, i) => v * (1 - pullFactor) + rVecNormalized[i] * pullFactor) as FounderVector;
+    // 2. Normalized Distance Penalty (Sensitive to Outliers)
+    let magDiff = 0
+    for(let i=0; i<12; i++) magDiff += Math.pow(productVector[i] - agent.vector[i], 2)
+    
+    // Outliers are 2x more sensitive to distance mismatches
+    const sensitivityK = agent.isOutlier ? 0.3 : 0.15
+    const distancePenalty = Math.exp(-Math.sqrt(magDiff) * sensitivityK)
+
+    // 3. Dynamic Tech Debt Impact
+    const userSensitivity = 0.5 + (sharpenedSim * 0.5) 
+    const effectiveTechPenalty = Math.pow(baseTechPenalty, userSensitivity)
+
+    return {
+      ...agent,
+      resonance: sharpenedSim * distancePenalty * effectiveTechPenalty
+    }
+  })
+}
+
+/**
+ * Population Generation (Monte Carlo + Black Swan Injection)
+ */
+export function generatePopulation(seed: PopulationSeed, count: number = 10000): AgentDNA[] {
+  const agents: AgentDNA[] = []
+  const { mean, std, outliers } = seed
+
+  // 1. Inject Black Swans (Outliers) from Research Docs (approx 2%)
+  if (outliers && outliers.length > 0) {
+    const outlierCount = Math.min(Math.floor(count * 0.02), outliers.length * 20)
+    for (let i = 0; i < outlierCount; i++) {
+        const source = outliers[i % outliers.length]
+        agents.push({
+            id: `outlier-${uuidv4()}`,
+            vector: source,
+            resonance: 0,
+            isOutlier: true
+        })
     }
   }
 
-  return newVector;
+  // 2. Generate Regular Population
+  const remainingCount = count - agents.length
+  for (let i = 0; i < remainingCount; i++) {
+    const vector: Vector12D = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    for (let d = 0; d < 12; d++) {
+      const u1 = Math.random()
+      const u2 = Math.random()
+      const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2)
+      
+      const val = mean[d] + z0 * std[d]
+      vector[d] = Math.max(0, Math.min(1, val))
+    }
+    agents.push({
+      id: uuidv4(),
+      vector,
+      resonance: 0
+    })
+  }
+  return agents
 }
 
 /**
- * 核心产出计算 (DRTA)
+ * Calculate macro metrics
  */
-export function calculateResonanceOutput(
-  founderVector: FounderVector,
-  marketVector: FounderVector,
-  techDebt: number,
-  age: number,
-  staffList: Staff[] = []
-): { progressDelta: number; resonance: number; magnitude: number } {
-  const ageGroup = getAgeGroup(age)
-  const ageMultiplier = AGE_MULTIPLIERS[ageGroup].tec
+export function calculateMetrics(population: AgentDNA[], cash: number) {
+  const totalResonance = population.reduce((sum, a) => sum + a.resonance, 0)
+  const avgResonance = totalResonance / population.length
 
-  // 1. state = V_founder + V_staff
-  const stateVector = [...founderVector] as FounderVector
-  staffList.forEach(s => {
-    const dimIdx = DIM[s.role]
-    stateVector[dimIdx] = Math.min(150, stateVector[dimIdx] + s.talent * 0.5) // 每个员工最高提供一半才华的加成，单维度硬顶150
-  })
+  // Sigmoid Conversion Logic
+  const payingUsers = population.filter(a => {
+    const k = 25 
+    const x0 = 0.75 
+    const probability = 1 / (1 + Math.exp(-k * (a.resonance - x0)))
+    return Math.random() < probability
+  }).length
 
-  // 2. Magnitude (||state||)
-  const magnitude = Math.sqrt(stateVector.reduce((sum, val) => sum + val * val, 0))
+  const conversionRate = payingUsers / population.length
+  const arpu = 45 
+  const mrr = payingUsers * arpu 
 
-  // 3. Resonance (cos(state, V_market))
-  const dotProduct = stateVector.reduce((sum, val, i) => sum + val * marketVector[i], 0)
-  const magMarket = Math.sqrt(marketVector.reduce((sum, val) => sum + val * val, 0))
-  const resonance = (magnitude === 0 || magMarket === 0) ? 0 : dotProduct / (magnitude * magMarket)
-
-  // 4. Entropy Decay Φ(e) = e^(-λE)
-  // E = |staff| * 0.5 + (techDebt / 100) * 5.0 (为了对齐 techDebt 量级)
-  const E = staffList.length * 0.5 + (techDebt / 100) * 5.0
-  let decay = Math.exp(-0.1 * E)
-
-  // Low Entropy Bonus (小而美)
-  if (staffList.length === 0 && techDebt < 20) {
-    decay = 1.0 + (20 - techDebt) * 0.05 // 最高 2.0x 乘数
+  return {
+    avgResonance,
+    conversionRate,
+    mrr,
+    churnRate: Math.max(0, 0.6 - avgResonance) * 0.25
   }
-
-  const noise = 0.9 + Math.random() * 0.2
-
-  // 缩放系数 0.1 保证合理每周进度（3-15%）
-  const output = magnitude * Math.max(0, resonance) * decay * ageMultiplier * noise * 0.1
-
-  return { progressDelta: output, resonance, magnitude }
 }
 
 /**
- * 技术债步进
+ * Core step function
  */
-export function stepTechDebt(techDebt: number, intensity: number, staffCount: number = 0): number {
-  let delta = 0.5  // 基础积累（复杂度自然增长）
-  if (intensity > 1.0) {
-    delta += 5 * (intensity - 1.0)  // 加班快速积累
-  }
-  // Low entropy benefit: zero staff reduces tech debt accumulation
-  if (staffCount === 0 && intensity <= 1.0) {
-    delta -= 0.3 // Reduces base accumulation
-  }
-  return Math.min(100, Math.max(0, techDebt + delta))
-}
+export function stepSimulation(state: SandboxState): SandboxState {
+  // Use current population for collision
+  const updatedAgents = runCollision(state.productVector, state.techDebt, state.agents)
+  const metrics = calculateMetrics(updatedAgents, state.cash)
 
-/**
- * MRR 计算（仅 MVP+ 且 devProgress ≥ 60）
- */
-export function calcMRR(state: GameState, mrrGrowthMultiplier: number = 1.0): number {
-  const { stage, devProgress, mrr, businessModel } = state.company
+  const monthlyBurn = state.burnRate || 20000 
+  const infraCost = metrics.mrr ? (metrics.mrr * 0.05) : 0 
+  const weeklyBurn = (monthlyBurn + infraCost) / 4
+  
+  const cashDelta = (metrics.mrr / 4) - weeklyBurn
 
-  if (stage === 'SEED' || devProgress < 60) return 0
-
-  // 基础增长率（按商业模式不同）
-  const baseGrowthRate: Record<string, number> = {
-    SUBSCRIPTION_SAAS: 0.15,
-    USAGE_BASED: 0.20,
-    MARKETPLACE: 0.08,
-    ONE_TIME_LICENSE: 0.05,
-    FREEMIUM: 0.10,
-  }
-  const growth = (baseGrowthRate[businessModel] ?? 0.1) * mrrGrowthMultiplier
-
-  if (mrr === 0) {
-    // 首笔收入
-    return Math.floor(500 * mrrGrowthMultiplier)
-  }
-  // 复利增长 + 随机波动
-  const noise = 0.85 + Math.random() * 0.3
-  return Math.floor(mrr * (1 + growth) * noise)
-}
-
-/**
- * Burn Rate 计算
- * Pre-alpha：固定基础值（无员工）
- */
-export function calcBurnRate(state: GameState): number {
-  const baseBurnByStage: Record<CompanyStage, number> = {
-    SEED: 15000,
-    MVP: 20000,
-    PMF: 30000,
-    SCALE: 60000,
-    IPO: 120000,
-    TITAN: 250000,
-    LIFESTYLE_EMPIRE: 30000,
-  }
-  const base = baseBurnByStage[state.company.stage] ?? 15000
-  const staffCost = state.company.staff.reduce((sum, s) => sum + s.salary, 0)
-  return base + staffCost
-}
-
-/**
- * 阶段晋级检查
- */
-function checkStagePromotion(state: GameState): { from: CompanyStage; to: CompanyStage } | null {
-  const { stage, devProgress, mrr } = state.company
-
-  if (stage === 'SEED' && devProgress >= 100) {
-    return { from: 'SEED', to: 'MVP' }
-  }
-  if (stage === 'MVP' && mrr >= 5000) {
-    return { from: 'MVP', to: 'PMF' }
-  }
-  if (stage === 'PMF' && mrr >= 50000) {
-    return { from: 'PMF', to: 'SCALE' }
-  }
-  if (stage === 'SCALE' && mrr >= 500000 && state.company.reputation >= 70) {
-    return { from: 'SCALE', to: 'IPO' }
-  }
-  if (stage === 'IPO' && state.company.marketShare >= 35 && state.company.reputation >= 90) {
-    return { from: 'IPO', to: 'TITAN' }
-  }
-  return null
-}
-
-function applyPromotion(state: GameState, promotion: { from: CompanyStage; to: CompanyStage }): GameState {
   return {
     ...state,
-    company: { ...state.company, stage: promotion.to }
-  }
-}
-
-// ============================================================
-// Game Over 检查
-// ============================================================
-
-function checkCashBankrupt(state: GameState): boolean {
-  if (state.company.cash > 0) {
-    if (state.company.cashCriticalStreak > 0) {
-      // 恢复正常时重置
-      state.company.cashCriticalStreak = 0
-    }
-    return false
-  }
-  state.company.cashCriticalStreak = (state.company.cashCriticalStreak ?? 0) + 1
-  return state.company.cashCriticalStreak > 4  // 持续超过 1 个月（4周）触发
-}
-
-function checkMarketDeath(state: GameState): boolean {
-  if (state.company.stage === 'SEED' && state.company.weekNumber > 26) return true
-  if (state.company.stage === 'MVP' && state.company.weekNumber > 52) return true
-  return false
-}
-
-function checkLifestyleVictory(state: GameState): boolean {
-  // Personal wealth >= ¥10,000,000 and survived at least 2 years (104 weeks), stage >= PMF
-  return state.founder.wealth >= 10000000 && state.company.weekNumber >= 104 && state.company.stage !== 'SEED' && state.company.stage !== 'MVP'
-}
-
-export function calcLegacyPoints(state: GameState): number {
-  const stageScoreMap: Record<CompanyStage, number> = {
-    SEED: 1, MVP: 3, PMF: 6, SCALE: 12, IPO: 20, TITAN: 35, LIFESTYLE_EMPIRE: 50
-  }
-  const stageScore = stageScoreMap[state.company.stage] ?? 1
-  const weeksAlive = state.company.weekNumber
-  const valBonus = (state.company.mrr * 10) / 10000 // Simplified valuation 
-  
-  // Base points
-  return Math.floor((stageScore * 100) + (weeksAlive * 2) + valBonus)
-}
-
-export function checkGameOver(state: GameState): GameOverResult | null {
-  if (checkCashBankrupt(state)) {
-    return {
-      isFailed: true,
-      reason: 'CASH_BANKRUPT',
-      failedAtStage: state.company.stage,
-      failedAtWeek: state.company.weekNumber,
-      legacyPoints: calcLegacyPoints(state)
-    }
-  }
-  if (checkMarketDeath(state)) {
-    return {
-      isFailed: true,
-      reason: 'MARKET_DEATH',
-      failedAtStage: state.company.stage,
-      failedAtWeek: state.company.weekNumber,
-      legacyPoints: calcLegacyPoints(state)
-    }
-  }
-  if (checkLifestyleVictory(state)) {
-    return {
-      isFailed: false,
-      reason: 'LIFESTYLE_VICTORY',
-      failedAtStage: state.company.stage,
-      failedAtWeek: state.company.weekNumber,
-      legacyPoints: calcLegacyPoints(state) * 2 // Victory bonus
-    }
-  }
-  return null
-}
-
-// ============================================================
-// Aha-Moment 检查
-// ============================================================
-function checkAhaMoment(state: GameState, log: WeekLog[]) {
-  // 1. BURNOUT_INSIGHT
-  if (state.company.lastBurnoutDrop) {
-    const drop = state.company.lastBurnoutDrop
-    state.company.lastBurnoutDrop = undefined
-    return {
-      type: 'BURNOUT_INSIGHT' as const,
-      insight: `[CORTEX ENGINE] 永久属性变更记录：\n  ${drop.dim}  : ${Math.floor(drop.oldVal)} → ${Math.floor(drop.oldVal - drop.dropAmount)}  (-${drop.dropAmount}) [PERMANENT]\n\n超级个体的边界不是努力的天花板，\n而是恢复力的下限。`,
-      referenceCase: 'Arianna Huffington, Sam Altman, Peter Thiel',
-    }
-  }
-
-  // 2. OPS_DEBT_EXPLOSION
-  const entropyScore = state.founder.vector[DIM.TEC] / Math.max(1, state.founder.vector[DIM.OPS])
-  if (entropyScore > 3.5 && state.company.opsDebtStreak >= 6) { // 3 sprints (6 weeks)
-    state.company.opsDebtStreak = 0 // resetting to avoid spam
-    return {
-      type: 'OPS_DEBT_EXPLOSION' as const,
-      insight: `你的运营熵值已达到 ${entropyScore.toFixed(1)}。\n过去这段时间，你堆了无数新功能，却没有上监控和部署文档。\n清理这些技术债 = 额外 6 周工期 + 巨额维护成本\n\n管理效率也是生产力。这不是软技能，这是算法。`,
-      referenceCase: 'Knight Capital, MySpace, Fast.co',
-    }
-  }
-
-  // Pre-alpha 兜底：HARD_TRUTH（实际进度 < 预期 40%）
-  const totalProgress = log.reduce((sum, w) => sum + w.progressDelta, 0)
-  const expectedProgress = log.length * 8  // 每周预期 8%
-
-  if (totalProgress < expectedProgress * 0.4) {
-    return {
-      type: 'HARD_TRUTH' as const,
-      insight: '',  // 由 cortex-ai.ts 填充
-      referenceCase: '["WeWork", "Quibi", "Segway"][Math.floor(Math.random()*3)]',
-    }
-  }
-  return null
-}
-
-// ============================================================
-// 主 Sprint 循环
-// ============================================================
-export async function runSprint(
-  state: GameState,
-  weeks: number,
-  intensity: number = 1.0,
-  onWeekComplete?: (log: WeekLog, weekNum: number) => void
-): Promise<SprintResult> {
-  let currentState: GameState = JSON.parse(JSON.stringify(state))  // 深拷贝
-  const log: WeekLog[] = []
-
-  const mrrMultiplier = currentState.company.ideaScore?.mrrGrowthMultiplier ?? 1.0
-
-  for (let week = 1; week <= weeks; week++) {
-    currentState.company.weekNumber++
-
-    // 1. 计算本周进度 (DRTA)
-    const outputResult = calculateResonanceOutput(
-      currentState.founder.vector,
-      currentState.company.marketVector,
-      currentState.company.techDebt,
-      currentState.founder.age,
-      currentState.company.staff
-    )
-    const progressDelta = outputResult.progressDelta
-
-    // 2. 更新技术债
-    const newTechDebt = stepTechDebt(currentState.company.techDebt, intensity, currentState.company.staff.length)
-
-    // 3. 更新 MRR
-    const newMRR = calcMRR(currentState, mrrMultiplier)
-
-    // 4. Receivables (应收款槽账期风险模拟)
-    const currentReceivables = currentState.company.receivables + newMRR
-    // 每周只能收回总应收款的一定比例（例如 40% ~ 60%），模拟账期延迟
-    const collectionRate = 0.4 + Math.random() * 0.2
-    const collectedCash = Math.floor(currentReceivables * collectionRate)
-    const newReceivables = currentReceivables - collectedCash
-
-    // 5. 扣除 burn rate
-    const burnRate = calcBurnRate(currentState)
-    const cashDelta = collectedCash - burnRate  // 真正到手的钱减去支出
-
-    // 6. Burnout 机制 (压力积攒与永久掉属性)
-    const stressDelta = intensity > 1.2 ? 25 : intensity > 1.0 ? 15 : -10
-    currentState.founder.bwStress = Math.min(100, Math.max(0, currentState.founder.bwStress + stressDelta))
-    let burnoutTriggered = false
-    if (currentState.founder.bwStress > 95) {
-      currentState.founder.bwStressStreak++
-      if (currentState.founder.bwStressStreak >= 4 && (currentState.founder.age >= 35 || intensity > 1.0)) {
-        // 连续4周高压且(大龄或疯狂加班) -> Burnout!
-        burnoutTriggered = true
-        currentState.founder.bwStressStreak = 0
-        currentState.founder.bwStress = 50 
-        
-        // 随机一个属性永久掉 5-15 点
-        const dimIndex = Math.floor(Math.random() * 6)
-        const dimNames = ['MKT', 'TEC', 'LRN', 'FIN', 'OPS', 'CHA']
-        const dimName = dimNames[dimIndex]
-        const oldVal = currentState.founder.vector[dimIndex]
-        const dropAmount = Math.floor(Math.random() * 11) + 5
-        currentState.founder.vector[dimIndex] = Math.max(20, currentState.founder.vector[dimIndex] - dropAmount)
-        currentState.company.lastBurnoutDrop = { dim: dimName, dropAmount, oldVal }
-      }
-    } else {
-      currentState.founder.bwStressStreak = 0
-    }
-
-    // 6.5. OPS Entropy 积累
-    const entropyScore = currentState.founder.vector[DIM.TEC] / Math.max(1, currentState.founder.vector[DIM.OPS])
-    if (entropyScore > 3.5) {
-      currentState.company.opsDebtStreak++
-    } else {
-      currentState.company.opsDebtStreak = 0
-    }
-
-    // 7. 更新状态
-    currentState = {
-      ...currentState,
-      company: {
-        ...currentState.company,
-        devProgress: Math.min(100, currentState.company.devProgress + progressDelta),
-        cash: currentState.company.cash + cashDelta,
-        mrr: newMRR,
-        receivables: newReceivables,
-        techDebt: newTechDebt,
-        marketVector: nextMarketDrift(currentState.company.marketVector, currentState.company.industry, currentState.company.rivals),
-        resonance: outputResult.resonance,
-      }
-    }
-
-    const weekLog: WeekLog = {
-      week,
-      progressDelta,
-      cashDelta,
-      techDebtDelta: newTechDebt - state.company.techDebt,
-      narrative: `[Week ${week}] Progress +${progressDelta.toFixed(1)}% | Cash ${cashDelta >= 0 ? '+' : ''}¥${cashDelta.toLocaleString()}${burnoutTriggered ? ' ⚠️ BURNOUT' : ''}`,
-    }
-
-    log.push(weekLog)
-    onWeekComplete?.(weekLog, week)
-
-    // 6. Game Over 检查
-    const gameOver = checkGameOver(currentState)
-    if (gameOver) {
-      return {
-        finalState: { ...currentState, isFailed: true, failureReason: gameOver.reason },
-        log,
-        gameOver,
-      }
-    }
-  }
-
-  // 7. Aha-Moment 检查
-  const aha = checkAhaMoment(currentState, log)
-
-  // 8. 阶段晋级检查
-  const promotion = checkStagePromotion(currentState)
-  if (promotion) {
-    currentState = applyPromotion(currentState, promotion)
-  }
-
-  return {
-    finalState: currentState,
-    log,
-    ahaMoment: aha ?? undefined,
-    promotion: promotion ?? undefined,
-    gameOver: undefined,
-  }
-}
-
-// ============================================================
-// 创始人初始化
-// ============================================================
-export function createFounder(
-  background: string,
-  age: number,
-  name: string = 'Founder'
-): Founder {
-  const bgPresets: Record<string, FounderVector> = {
-    FRESH_GRAD: [40, 75, 80, 30, 35, 50],
-    CORPORATE_REFUGEE: [55, 60, 55, 65, 70, 45],
-    SERIAL_PRO: [65, 50, 60, 70, 75, 70],
-    INDUSTRY_VETERAN: [60, 45, 50, 85, 80, 65],
-    PLAIN_STARTER: [60, 60, 60, 60, 60, 60],
-  }
-
-  const baseVector = bgPresets[background] ?? bgPresets.PLAIN_STARTER
-  // 加小量随机扰动 ±5
-  const vector: FounderVector = baseVector.map(
-    v => Math.min(100, Math.max(20, v + (Math.random() * 10 - 5)))
-  ) as FounderVector
-
-  const ageGroup = age < 30 ? '20s' : age < 40 ? '30s' : age < 50 ? '40s' : '50plus'
-  const bwMax = ageGroup === '20s' ? 100 : ageGroup === '30s' ? 90 : ageGroup === '40s' ? 80 : 70
-
-  return {
-    name,
-    age,
-    ageGroup,
-    background: background as any,
-    vector,
-    bwMax,
-    bwUsed: 0,
-    bwStress: 0,
-    bwStressStreak: 0,
-    wealth: 0,
-  }
-}
-
-export function createCompany(
-  industry: IndustryType,
-  businessModel: string,
-  founderBackground: string,
-  name: string
-): CompanyState {
-  const startCash: Record<string, number> = {
-    FRESH_GRAD: 50000,
-    CORPORATE_REFUGEE: 200000,
-    SERIAL_PRO: 150000,
-    INDUSTRY_VETERAN: 300000,
-    PLAIN_STARTER: 100000,
-  }
-
-  return {
-    name,
-    industry,
-    businessModel: businessModel as any,
-    stage: 'SEED',
-    cash: startCash[founderBackground] ?? 100000,
-    burnRate: 15000,
-    mrr: 0,
-    receivables: 0,
-    devProgress: 0,
-    moat: 5,
-    techDebt: 0,
-    valuation: 0,
-    weekNumber: 0,
-    cashCriticalStreak: 0,
-    opsDebtStreak: 0,
-    isPostBadDecision: false,
-    marketVector: INDUSTRY_WEIGHTS[industry], // 初始市场方向直接取行业权重（归一化为 0-1）
-    resonance: 0, // 初始待计算
-    staff: [], // 初始无员工
-    actionCards: [], // 初始无卡牌
-    dividendsPaid: 0,
-    reputation: 0, // 初始声誉
-    marketShare: 0, // 初始无市占率
-    rivals: [] // 初始无明显对手
+    weekNumber: state.weekNumber + 1,
+    cash: Math.max(-10000000, state.cash + cashDelta),
+    agents: updatedAgents,
+    metrics: {
+        ...metrics,
+        mrr: metrics.mrr
+    },
   }
 }
