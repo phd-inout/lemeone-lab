@@ -25,12 +25,18 @@ const RESPONSE_SCHEMA = {
                     vector_perturbation: {
                         type: "OBJECT",
                         properties: {
-                            mkt: { type: "NUMBER" },
-                            tec: { type: "NUMBER" },
-                            lrn: { type: "NUMBER" },
-                            fin: { type: "NUMBER" },
-                            ops: { type: "NUMBER" },
-                            chr: { type: "NUMBER" }
+                            D1_PERF: { type: "NUMBER" },
+                            D2_DEPTH: { type: "NUMBER" },
+                            D3_INTERACT: { type: "NUMBER" },
+                            D4_STABLE: { type: "NUMBER" },
+                            D5_FRICTION: { type: "NUMBER" },
+                            D6_UNIQUE: { type: "NUMBER" },
+                            D7_SOCIAL: { type: "NUMBER" },
+                            D8_CONSISTENCY: { type: "NUMBER" },
+                            D9_ECO: { type: "NUMBER" },
+                            D10_BARRIER: { type: "NUMBER" },
+                            D11_GLOBAL: { type: "NUMBER" },
+                            D12_CURVE: { type: "NUMBER" }
                         }
                     },
                     macro_modifiers: {
@@ -131,7 +137,13 @@ async function syncDailyMarketDrift() {
     console.log(`深度点评: ${analysis.commentary}`);
 
     // 遍历行业影响
-    analysis.industry_impacts.forEach((impact: any) => console.log(`- 行业: ${impact.industry}, 类型: ${impact.type}, 影响值: ${impact.severity}`));
+    analysis.industry_impacts.forEach((impact: any) => {
+        console.log(`- 行业: ${impact.industry}`);
+        console.log(`  宏观变化: 烧钱乘数 ${impact.macro_modifiers?.burn_rate_multiplier}`);
+        const v = impact.vector_perturbation || {};
+        const changes = Object.keys(v).filter(k => v[k] !== 0).map(k => `${k}: ${v[k]}`).join(', ');
+        if (changes) console.log(`  DNA 扰动: ${changes}`);
+    });
 }
 
 // syncDailyMarketDrift();

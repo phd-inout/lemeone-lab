@@ -17,9 +17,9 @@
 
 AI 将新闻摘要处理为以下结构化数据：
 
-1. **关键词标签**：如 \#AI\_Regulation, \#Interest\_Rate\_Hike, \#Cloud\_Price\_War。  
-2. **DRTA 扰动值**：对 6 维向量的临时修正。  
-3. **宏观因子修正**：如 burn\_rate (烧钱率), exit\_multiplier (退出倍数)。
+1. **关键词标签**：如 #AI_Regulation, #Interest_Rate_Hike, #Cloud_Price_War。  
+2. **DRTA 扰动值 (12D Vector)**：对 D1~D12 向量维度的临时修正（例如政策严打直接降低 D11_GLOBAL 上限）。  
+3. **宏观因子修正**：如 burn_rate (烧钱率), exit_multiplier (退出倍数)。
 
 ## **3\. UI 表现：终端新闻推送 (Terminal UI)**
 
@@ -27,10 +27,10 @@ AI 将新闻摘要处理为以下结构化数据：
 
 每天/周开始时，终端会自动滚动一段紫色高亮的文本：
 
-\[NEWS\_SYNC\] 2026.03.10 全球行业同步完成...  
-\> 现实事件: OpenAI 发布了最新的“推理模型集群”协议。  
-\> 影响评估: 全球 AI SaaS 行业的 TEC 准入门槛提升 12%。  
-\> 策略建议: 你的架构可能面临“代际落后”，建议下周执行 \[Audit\] 或 \[Learn\]。
+[NEWS_SYNC] 2026.03.10 全球行业同步完成...  
+> 现实事件: OpenAI 发布了最新的“推理模型集群”协议。  
+> 影响评估: 全球 AI SaaS 行业的 D2_DEPTH（技术深度）与 D5_FRICTION（门槛）受到重构。  
+> 策略建议: 你的架构可能面临“代际落后”，建议下周执行 [Audit] 或 [Learn]。
 
 在终端右上方预留一个微小的“滚动新闻条”，用暗绿色展示实时抓取的标题，增加那种“时刻与世界连接”的焦虑感。
 
@@ -39,9 +39,9 @@ AI 将新闻摘要处理为以下结构化数据：
 
 在 sprint 过程中，有概率触发突发新闻中断：
 
-\[BREAKING\] 某头部云服务商发生全球性宕机。
+[BREAKING] 某头部云服务商发生全球性宕机。
 
-\[IMPACT\] 你的 Progress 进度发生 2% 塌缩，Ops 损耗临时 \+5。
+[IMPACT] 所有强依赖 D8_CONSISTENCY（一致性）的竞品发生崩盘，技术债 (TechDebt) 临时倍增，此为截胡高净值用户的微型窗口期。
 
 ## **4\. 行业差异化映射 (Industry-Specific Logic)**
 
