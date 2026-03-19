@@ -90,7 +90,7 @@ export interface SandboxState {
   assets: {
     proposal: string
     backlog: string
-    marketFeedback: string
+    journal: string // Persistent log for strategy decisions & drift
     stressTestReport: string
     competitiveRadar?: string
   }

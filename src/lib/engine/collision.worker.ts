@@ -19,13 +19,15 @@ self.onmessage = (e: MessageEvent) => {
   
   const lambda = 0.08
   const baseTechPenalty = Math.exp(-lambda * (techDebt / 100))
-  const beta = 5.0
-  const gamma = 0.0001
+  const beta = 3.0
+  const gamma = 0.001
   const marketingSpend = productVector[12] * 100 
   const socialFactor = productVector[6] 
   
   const sigmoid = (x: number) => 1 / (1 + Math.exp(-x))
-  const pAware = sigmoid(((beta * marketingSpend) + (gamma * socialFactor * previousPaidUsers)) - 5)
+  const baseOrganic = 0.05
+  const marketingAwareness = sigmoid(((beta * marketingSpend) + (gamma * socialFactor * previousPaidUsers)) - 3)
+  const pAware = Math.min(1, baseOrganic + marketingAwareness)
 
   const updatedChunk = populationChunk.map((agent: AgentDNA) => {
     const cosSim = calculateCosineSimilarity(productVector, agent.vector, weights)

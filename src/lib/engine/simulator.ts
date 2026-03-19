@@ -42,14 +42,17 @@ export function runCollision(
   const baseTechPenalty = Math.exp(-lambda * (techDebt / 100))
   
   // P_aware constants
-  const beta = 5.0
-  const gamma = 0.0001
+  const beta = 3.0
+  const gamma = 0.001
   const marketingSpend = productVector[12] * 100 // mapped from 0-1 to 0-100
   const socialFactor = productVector[6] // D7
   
   const sigmoid = (x: number) => 1 / (1 + Math.exp(-x))
   // Calculate Base Awareness Probability for this epoch
-  const pAware = sigmoid(((beta * marketingSpend) + (gamma * socialFactor * previousPaidUsers)) - 5) // -5 offsets sigmoid center
+  // Base organic awareness floor prevents cold-start death spiral
+  const baseOrganic = 0.05
+  const marketingAwareness = sigmoid(((beta * marketingSpend) + (gamma * socialFactor * previousPaidUsers)) - 3)
+  const pAware = Math.min(1, baseOrganic + marketingAwareness)
 
   return population.map(agent => {
     // 1. R_cos (Directional Consistency)

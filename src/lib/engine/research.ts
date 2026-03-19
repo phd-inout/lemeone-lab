@@ -91,7 +91,7 @@ export async function fetchNewsAnalysis(userQuery: string, retries: number = 3, 
         }
     }
 
-    const MODEL_NAME = "gemini-2.5-flash";
+    const MODEL_NAME = "gemini-3.1-flash-lite-preview";
     const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
     try {

@@ -24,7 +24,7 @@ const AssetPanel: React.FC = () => {
   const tabs = [
     { id: 'proposal', label: 'PROPOSAL' },
     { id: 'backlog', label: 'BACKLOG' },
-    { id: 'marketFeedback', label: 'FEEDBACK' },
+    { id: 'journal', label: 'JOURNAL' },
     { id: 'stressTestReport', label: 'AUDIT' },
     { id: 'competitiveRadar', label: 'RADAR' },
   ];
@@ -52,15 +52,18 @@ const AssetPanel: React.FC = () => {
       </div>
 
       {/* 2. Markdown Content with Optimized Typography */}
-      <div className="flex-1 overflow-y-auto p-4 selection:bg-primary/30 min-h-0 scrollbar-thin scrollbar-thumb-gray-800">
-        <article className="prose prose-invert prose-xs max-w-none 
+      <div className="flex-1 overflow-y-auto p-3 selection:bg-primary/30 min-h-0">
+        <article className="prose prose-invert max-w-none 
           prose-headings:font-mono prose-headings:tracking-tighter prose-headings:uppercase prose-headings:text-primary/80
-          prose-h1:text-[13px] prose-h1:border-b prose-h1:border-primary/20 prose-h1:pb-1 prose-h1:mb-4
-          prose-h2:text-[11px] prose-h2:mt-6 prose-h2:mb-2
-          prose-p:text-[11px] prose-p:text-gray-400 prose-p:leading-relaxed
-          prose-li:text-[11px] prose-li:text-gray-400
-          prose-strong:text-white prose-strong:font-bold
-          prose-code:text-primary/90 prose-code:bg-primary/5 prose-code:px-1 prose-code:rounded
+          prose-h1:text-[11px] prose-h1:border-b prose-h1:border-primary/20 prose-h1:pb-1 prose-h1:mb-3
+          prose-h2:text-[10px] prose-h2:mt-4 prose-h2:mb-1
+          prose-h3:text-[10px] prose-h3:mt-3 prose-h3:mb-1
+          prose-p:text-[9px] prose-p:text-gray-400 prose-p:leading-normal prose-p:my-1
+          prose-li:text-[9px] prose-li:text-gray-400 prose-li:my-0
+          prose-ul:my-1 prose-ol:my-1
+          prose-strong:text-white prose-strong:font-bold prose-strong:text-[9px]
+          prose-code:text-primary/90 prose-code:bg-primary/5 prose-code:px-1 prose-code:rounded prose-code:text-[9px]
+          prose-blockquote:border-primary/30 prose-blockquote:text-gray-500 prose-blockquote:text-[9px] prose-blockquote:my-1
           ">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {(assets as any)[activeTab] || `[ EMPTY_BUFFER: ${activeTab} ]`}

@@ -23,7 +23,7 @@ ${C.cyan}${C.bold}LEMEONE_LAB v2.0 CLI${C.reset} ${C.gray}— Gravity Sandbox OS
 
 ${C.bold}FEEDING & INITIALIZATION${C.reset}
   ${C.green}scan "<seed>"${C.reset}   - Initialize from text or drop a BP/PRD file.
-  ${C.green}upgrade <tier>${C.reset}   - Upgrade license (FREE, PRO, ULTRA, ENTERPRISE).
+  ${C.green}tier <tier>${C.reset}   - Upgrade license (FREE, PRO, ULTRA, ENTERPRISE).
 
 ${C.bold}SIMULATION${C.reset}
   ${C.green}dev${C.reset}            - Advance to next Market Epoch (T+1, T+2), triggers 10,000-agent collision.
@@ -31,10 +31,8 @@ ${C.bold}SIMULATION${C.reset}
 
 ${C.bold}VECTOR TUNING${C.reset}
   ${C.green}set <dim> <val>${C.reset}   - Adjust 13D dimensions (perf, depth, interact, stable...).
-  ${C.green}set-price <val>${C.reset}   - Adjust Dimension 5 (Friction/Price). Alias for 'set friction <val>'.
   ${C.green}feature "<desc>"${C.reset} - Map a natural language feature to vector space.
   ${C.green}team <size>${C.reset}      - Set resource constraint (SOLO, STARTUP, ENTERPRISE).
-  ${C.green}pivot${C.reset}            - Auto-adjust strategy vectors based on the latest AI audit report.
 
 ${C.bold}DIAGNOSTICS${C.reset}
   ${C.green}stat${C.reset}             - Display precise 13D product vector & metrics.
@@ -78,8 +76,7 @@ export default function TerminalUI() {
                 xtermRef.current.write('\r\n' + terminalLines[i])
             }
             lastRenderedLineCount.current = terminalLines.length
-            // showPrompt() is triggered by component later if needed, but we can do it here manually for store-driven output
-            xtermRef.current.write('\r\n> ')
+            xtermRef.current.scrollToBottom()
         }
     }, [terminalLines])
 
@@ -132,7 +129,7 @@ export default function TerminalUI() {
                     await initSimulation(inputStr)
                 }
                 break
-            case 'upgrade':
+            case 'tier':
                 const newTier = args[0]?.toUpperCase() as any
                 if (['FREE', 'PRO', 'ULTRA', 'ENTERPRISE'].includes(newTier)) {
                     upgradeTier(newTier)
@@ -141,26 +138,8 @@ export default function TerminalUI() {
                 }
                 break
             case 'dev':
-            case 'run':
                 print(`${C.green}[COLLISION] 执行下一周期 (Epoch) 10,000 并行压力测试...${C.reset}`)
                 await step()
-                break
-            case 'set-price':
-                if (args[0] && !isNaN(parseFloat(args[0]))) {
-                    updateVector('FRICTION', parseFloat(args[0]))
-                } else {
-                    print(`${C.red}[ERR] Usage: set-price <val>${C.reset}`)
-                }
-                break
-            case 'pivot':
-                print(`${C.yellow}[PIVOT] Generating aggressive product vector changes based on recent audit...${C.reset}`)
-                // Simple alias: just adds a macro feature to shift dimensions based on the backlog.
-                const sTemp = useLemeoneStore.getState().sandboxState
-                if (sTemp && sTemp.assets.backlog) {
-                    await addFeature(`Pivot execution based on: ${sTemp.assets.backlog}`)
-                } else {
-                    print(`${C.red}[ERR] Missing audit context. Run 'audit' first.${C.reset}`)
-                }
                 break
             case 'set':
                 const dim = args[0]?.toUpperCase() as keyof typeof DIM
@@ -267,7 +246,7 @@ case 'stat':
         xtermRef.current = term
 
         term.writeln(`${C.cyan}${C.bold}[LAB_INIT] 实验室环境初始化完成...${C.reset}`)
-        term.writeln(`${C.gray}当前现实同步： ${C.magenta}已挂载 $Gemini-2.5-Flash$ 新闻实时映射引擎。${C.reset}`)
+        term.writeln(`${C.gray}当前现实同步： ${C.magenta}已挂载全球新闻与实时映射引擎。${C.reset}`)
         term.writeln(`${C.gray}内核版本： ${C.green}DRTA 2.0 (Gravity Engine)。${C.reset}`)
         term.writeln(`${C.cyan}请输入你的商业蓝图或拖入 PRD 文档。${C.reset}`)
         term.writeln(`${C.yellow}提示：描述越模糊，σ (不确定性) 越高，模拟中的现金流崩塌风险越大。${C.reset}`)
@@ -322,7 +301,16 @@ case 'stat':
         const handleResize = () => fitAddon.fit()
         window.addEventListener('resize', handleResize)
 
+        let observer: ResizeObserver | null = null;
+        if (termRef.current) {
+            observer = new ResizeObserver(() => {
+                fitAddon.fit()
+            });
+            observer.observe(termRef.current);
+        }
+
         return () => {
+            if (observer) observer.disconnect();
             window.removeEventListener('resize', handleResize)
             term.dispose()
             xtermRef.current = null

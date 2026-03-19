@@ -11,10 +11,60 @@ const TerminalUI = dynamic(() => import('@/components/TerminalUI'), { ssr: false
 export default function Home() {
   const sandboxState = useLemeoneStore(s => s.sandboxState);
   const [mounted, setMounted] = useState(false);
+  const [leftWidth, setLeftWidth] = useState(25);
+  const [rightWidth, setRightWidth] = useState(30);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const startResizingLeft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = leftWidth;
+    const fullWidth = window.innerWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setLeftWidth(Math.max(15, Math.min(50, startWidth + (delta / fullWidth) * 100)));
+    };
+
+    const onMouseUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const startResizingRight = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = rightWidth;
+    const fullWidth = window.innerWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startX - moveEvent.clientX; 
+      setRightWidth(Math.max(15, Math.min(60, startWidth + (delta / fullWidth) * 100)));
+    };
+
+    const onMouseUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
 
   if (!mounted) return null;
 
@@ -69,32 +119,23 @@ export default function Home() {
       {/* 2. MAIN GRID LAYOUT */}
       <main className="flex-1 flex overflow-hidden">
         
-        {/* LEFT: Gravity Field (25%) */}
-        <aside className="w-1/4 border-r border-border-dark bg-[#050505] p-4 flex flex-col gap-4 overflow-y-auto">
+        {/* LEFT: Gravity Field */}
+        <aside style={{ width: `${leftWidth}%` }} className="bg-[#050505] p-4 flex flex-col gap-4 overflow-y-auto shrink-0">
           <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-2 flex justify-between">
             <span>Market_Gravity_Field</span>
             <span className="text-primary/50">LIVE</span>
           </div>
           <ParticleManifold />
-          
-          <div className="mt-4 space-y-4">
-            <div className="p-3 border border-border-dark bg-black/40 rounded">
-              <div className="text-[9px] text-gray-500 mb-1 font-bold">CONVERSION_PROBABILITY</div>
-              <div className="text-xl text-primary font-bold">
-                {(sandboxState?.metrics.conversionRate || 0 * 100).toFixed(2)}%
-              </div>
-            </div>
-            <div className="p-3 border border-border-dark bg-black/40 rounded">
-              <div className="text-[9px] text-gray-500 mb-1 font-bold">TECH_DEBT_COEFFICIENT</div>
-              <div className="text-xl text-yellow-500 font-bold">
-                {sandboxState?.techDebt.toFixed(1)}%
-              </div>
-            </div>
-          </div>
         </aside>
 
-        {/* CENTER: Terminal (45%) */}
-        <section className="flex-1 flex flex-col bg-black relative border-r border-border-dark">
+        {/* DRAG HANDLE 1 */}
+        <div 
+          className="w-1 cursor-col-resize bg-border-dark hover:bg-primary transition-colors z-50 shrink-0"
+          onMouseDown={startResizingLeft}
+        />
+
+        {/* CENTER: Terminal */}
+        <section className="flex-1 flex flex-col bg-black relative min-w-0 overflow-hidden">
           <div className="absolute inset-0">
             <TerminalUI />
           </div>
@@ -103,8 +144,14 @@ export default function Home() {
           <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         </section>
 
-        {/* RIGHT: Strategic Assets (30%) */}
-        <aside className="w-[30%] bg-[#080808] p-4 flex flex-col overflow-hidden">
+        {/* DRAG HANDLE 2 */}
+        <div 
+          className="w-1 cursor-col-resize bg-border-dark hover:bg-primary transition-colors z-50 shrink-0"
+          onMouseDown={startResizingRight}
+        />
+
+        {/* RIGHT: Strategic Assets */}
+        <aside style={{ width: `${rightWidth}%` }} className="bg-[#080808] p-4 flex flex-col overflow-hidden shrink-0">
           <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-4 flex justify-between">
             <span>Strategic_Asset_Reader</span>
             <span className="text-yellow-500/50">ENCRYPTED</span>

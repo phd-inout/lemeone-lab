@@ -14,7 +14,8 @@ import {
 import { 
     generatePopulation, 
     stepSimulation, 
-    runCollision 
+    runCollision,
+    calculateMetrics 
 } from './engine/simulator'
 import { 
     scanSeed, 
@@ -99,6 +100,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const proposal = await generateProposal(seed, seedText)
                 const initialPopulation = generatePopulation(seed, limits.maxAgents)
                 const agents = await import('./engine/simulator').then(m => m.runCollisionAsync(seed.mean, 0, initialPopulation, 0))
+                const initialMetrics = calculateMetrics(agents, 0, 'STARTUP')
                 
                 const initialState: SandboxState = {
                     id: uuidv4(),
@@ -109,16 +111,11 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     currentStage: 'SEED',
                     productVector: seed.mean,
                     agents,
-                    metrics: {
-                        avgResonance: 0,
-                        conversionRate: 0,
-                        earningPotential: 0,
-                        survivalRate: 1
-                    },
+                    metrics: initialMetrics,
                     assets: {
                         proposal,
                         backlog: '# PRODUCT_BACKLOG\nRun audit to generate...',
-                        marketFeedback: '',
+                        journal: '# STRATEGIC DRIFT JOURNAL\n\n> System Initialize [T+0]\n> Baseline recorded.\n',
                         stressTestReport: '',
                         competitiveRadar: '# COMPETITIVE RADAR\nRun audit to generate...'
                     }
@@ -131,7 +128,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
             answerInterview: async (text: string) => {
                 const { interviewHistory, draftSpec, userTier } = get()
                 const newHistory = [...interviewHistory, `User: ${text}`]
-                get().pushLine(`> ${text}`)
+                // NOTE: Don't pushLine the user input here — xterm already echoes it
                 
                 const { seed, terminalOutput, isComplete, draftContent } = await scanSeed(newHistory, draftSpec)
                 
@@ -156,6 +153,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const proposal = await generateProposal(seed, newHistory.join('\n'))
                 const initialPopulation = generatePopulation(seed, limits.maxAgents)
                 const agents = await import('./engine/simulator').then(m => m.runCollisionAsync(seed.mean, 0, initialPopulation, 0))
+                const initialMetrics = calculateMetrics(agents, 0, 'STARTUP')
 
                 const initialState: SandboxState = {
                     id: uuidv4(),
@@ -166,16 +164,11 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     currentStage: 'SEED',
                     productVector: seed.mean,
                     agents,
-                    metrics: {
-                        avgResonance: 0,
-                        conversionRate: 0,
-                        earningPotential: 0,
-                        survivalRate: 1
-                    },
+                    metrics: initialMetrics,
                     assets: {
                         proposal,
                         backlog: '# PRODUCT_BACKLOG\nRun audit to generate...',
-                        marketFeedback: '',
+                        journal: '# STRATEGIC DRIFT JOURNAL\n\n> System Initialize [T+0]\n> Baseline recorded.\n',
                         stressTestReport: '',
                         competitiveRadar: '# COMPETITIVE RADAR\nRun audit to generate...'
                     }
@@ -195,6 +188,10 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 if (!s) return
 
                 const nextState = await stepSimulation(s)
+                
+                const sRate = nextState.metrics.survivalRate
+                const nextJournal = s.assets.journal + `\n## [EPOCH T+${nextState.epoch}]\n- **Active Paid Users**: ${nextState.metrics.earningPotential.toLocaleString()}\n- **Survival Rate**: ${(sRate * 100).toFixed(1)}%\n- **Tech Debt**: ${nextState.techDebt.toFixed(1)}%\n- **Projected MRR**: $${(nextState.metrics.earningPotential * 15).toLocaleString()}\n`
+                nextState.assets.journal = nextJournal
 
                 set({ sandboxState: nextState })
                 
@@ -207,7 +204,6 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const b = '\x1b[1m'
 
                 const diffDebt = nextState.techDebt - s.techDebt
-                const sRate = nextState.metrics.survivalRate
 
                 const report = [
                     `\n${g}╔═ [EPOCH ADVANCED TO T+${nextState.epoch}] ═════════════════════════════════╗${res}`,
@@ -229,12 +225,14 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const nextVector = [...s.productVector] as Vector13D
                 nextVector[DIM[dim]] = Math.max(0, Math.min(1, value))
                 const updatedAgents = runCollision(nextVector, s.techDebt, s.agents, s.metrics.earningPotential)
+                const nextJournal = s.assets.journal + `\n> **[CMD]** Explicitly adjusted parameter \`${String(dim)}\` to \`${value.toFixed(2)}\` at T+${s.epoch}.\n`
 
                 set({
                     sandboxState: {
                         ...s,
                         productVector: nextVector,
-                        agents: updatedAgents
+                        agents: updatedAgents,
+                        assets: { ...s.assets, journal: nextJournal }
                     }
                 })
                 get().pushLine(`[CMD] Parameter ${dim} adjusted to ${value.toFixed(2)}`)
@@ -254,12 +252,15 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 const updatedAgents = runCollision(nextVector, s.techDebt + 5, s.agents, s.metrics.earningPotential)
 
+                const nextJournal = s.assets.journal + `\n> **[CMD]** Added new feature: "${description}" at T+${s.epoch}. (Tech Debt +5%)\n`
+
                 set({
                     sandboxState: {
                         ...s,
                         productVector: nextVector,
                         agents: updatedAgents,
                         techDebt: s.techDebt + 5,
+                        assets: { ...s.assets, journal: nextJournal }
                     }
                 })
                 get().pushLine(`[CMD] Feature "${description}" integrated. TechDebt +5.`)
@@ -269,10 +270,13 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const s = get().sandboxState
                 if (!s) return
 
+                const nextJournal = s.assets.journal + `\n> **[CMD]** Resized team to \`${size}\` at T+${s.epoch}.\n`
+
                 set({
                     sandboxState: {
                         ...s,
-                        teamSize: size
+                        teamSize: size,
+                        assets: { ...s.assets, journal: nextJournal }
                     }
                 })
                 get().pushLine(`[CMD] Team size adjusted to ${size}.`)
@@ -289,13 +293,15 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 get().pushLine("[SYSTEM] Triggering Deep AI Audit...")
                 const auditResults = await runAudit(s)
+                const nextJournal = s.assets.journal + `\n> **[CMD]** Triggered deep AI Audit at T+${s.epoch}.\n`
 
                 set({ 
                     sandboxState: {
                         ...s,
                         assets: {
                             ...s.assets,
-                            ...auditResults
+                            ...auditResults,
+                            journal: nextJournal
                         }
                     }
                 })
