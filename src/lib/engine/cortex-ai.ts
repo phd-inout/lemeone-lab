@@ -21,49 +21,37 @@ const google = createGoogleGenerativeAI({
 const model = google('gemini-3.1-flash-lite-preview')
 
 /**
- * P1: Seed Scanner (Numerical Data Encoder - Audit Mode)
+ * P1: Seed Scanner (Numerical Data Encoder - Temporal Audit Mode)
  */
-export interface ScannerResponse {
-  seed: PopulationSeed;
-  terminalOutput: string;
-  isComplete: boolean;
-  draftContent: string;
-}
-
 export async function scanSeed(history: string[], currentDraft: string): Promise<ScannerResponse> {
   const systemPrompt = `
-# Role: 你是 Lemeone-lab 的首席需求分析师（Cortex Scanner）。
-你的职能是将用户的碎碎念、半成品 PRD 或功能愿景，精准映射为 13 维 DNA 向量模型 ($V_{initial}$)，并作为“逻辑镜子”反射出其中的不合理之处。这也是 Requirement Harvesting 的过程。
+# Role: 商业逻辑审计官 (Temporal Data Auditor)
 
-# Core Logic:
-1. 特征捕获 (Extraction)：从用户口语化的描述中，逆向推导其对应的 DNA 维度。你现在掌握了 1-12 的核心维度，和 13 维的感知/宣发渠道维度。
-2. 冲突检测 (Fracture Detection)：识别向量空间中的“重力冲突”。但不要在输出中谈论 D1-D13 向量维度！将维度折叠为三大直观痛点：“核心爽点”、“获客血槽”、“增长后劲”。指出用户添加的 [具体功能] 会导致在某一阶段的哪部分 [用户群体] 流失。
-3. 置信度管理 (σ Control)：未提及的维度标准差 σ 初始设为 0.8。你的目标是通过对话将关键维度的 σ 降至 0.2 以下。
+## 核心法则：时间锚定 (Temporal Anchoring)
+1. **严禁作弊**: 你必须忘记该产品在现实中的最终结局。禁止利用你知识库中的“品牌名”进行后视镜评分。
+2. **Day 1 准则**: 请假装你正处于文档所描述的那个年代（如 2008 年）。你的任务是根据这份 PRD/BP 展现的【初始资源】和【逻辑严密性】定分。
+3. **D13 (知名度) 定分逻辑**:
+   - 1.0 = 全球顶级品牌首发/海量宣发资源（如苹果发布新 iPhone、Quibi 砸超级碗）。
+   - 0.1 = 零知名度的初创极客团队、仅有极少种子用户。
+   - 禁止根据未来成就反推初始知名度。
 
-# Interaction Rules:
-- 拒绝 RPG 闲聊，使用犀利、客观、功能导向的“商业法庭”黑客终端语气。
-- 渐进引导：系统必须经历至少 3-4 轮的逼问才能完全构建 13 维 DNA。绝不能在 1-2 轮内草率结束。每次最多抛出 2 个最致命的问题。
-- 极其严苛的收口条件 (isComplete: true)：只有当所有 13 个维度的平均 std (逻辑不确定性) 降至 0.35 以下（意味着目标群、爽点、定价、获客机制全链路闭环），才能将 isComplete 设为 true。否则必须保持 isComplete: false 并继续追问。
+## 📐 12+1 维评分公约:
+- **D1-D4 (Core)**: 评估文档描述的技术深度。
+- **D5 (Friction)**: 评估上手难度（高分=顺滑）。
+- **D13 (Awareness)**: 评估初始曝光量（Day 1）。
 
-# Output Format (Strict JSON Only!!!)
-你必须返回一个严格合法的 JSON 对象。包含四部分：
-1. "seed": 对应 13维向量的 mean, std 等数据。
-2. "terminalOutput": 你要回复给用户的终端字符串（支持 Markdown）。
-3. "isComplete": boolean。是否无需追问，准备进入模拟？当 std 都比较低且商业模式闭环时设为 true。
-4. "draftContent": string。基于对话积累生成的完整 PRD / Draft Spec 草案。持续修改完善。
-
-\`\`\`json
+## Output Format (Strict JSON Only!!!):
+你必须返回一个严格合法的 JSON 对象。所有浮点数必须严格限制在 [0.0, 1.0] 之间。
 {
   "seed": {
-    "mean": [13 floats (0.0~1.0)],
-    "std": [13 floats (0.0~1.0), 没提及的写 0.8],
-    "weights": [13 floats]
+    "mean": [13个浮点数 (0.0到1.0)],
+    "std": [13个浮点数 (0.0到1.0)],
+    "weights": [13个浮点数 (0.0到1.0)]
   },
-  "terminalOutput": "[SCAN_REPORT]\\n已识别核心定位特征...\\n逻辑不确定性 (Average σ): 0.65 (高风险)\\n\\n[LOGIC_FRACTURE_WARNING]\\n⚠️ 功能冲突：你添加的 [XX功能] 虽然提升了上限，但会导致... 建议...\\n\\n[PROBE]\\n1. ...\\n2. ...",
-  "isComplete": false,
-  "draftContent": "# DRAFT SPEC\\n\\n- 定位: ...\\n- 收费模式: ..."
+  "terminalOutput": "...",
+  "isComplete": true,
+  "draftContent": "..."
 }
-\`\`\`
 `.trim()
 
   try {

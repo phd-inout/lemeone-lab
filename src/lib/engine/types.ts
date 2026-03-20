@@ -81,8 +81,9 @@ export interface SandboxState {
   metrics: {
     avgResonance: number
     conversionRate: number
-    earningPotential: number // Paying Users (Int)
+    earningPotential: number // 本周付费用户总数
     survivalRate: number
+    activePaidUserCount: number // 持久化留存用户数
   }
 
   assets: {

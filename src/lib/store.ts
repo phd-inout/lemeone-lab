@@ -204,13 +204,6 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const nextJournal = s.assets.journal + `\n## [EPOCH T+${nextState.epoch}]\n- **Active Paid Users**: ${nextState.metrics.earningPotential.toLocaleString()}\n- **Survival Rate**: ${(sRate * 100).toFixed(1)}%\n- **Tech Debt**: ${nextState.techDebt.toFixed(1)}%\n- **Projected MRR**: $${(nextState.metrics.earningPotential * 15).toLocaleString()}\n`
                 
                 nextState.assets.journal = nextJournal
-                nextState.history.push({
-                    epoch: nextState.epoch,
-                    users: nextState.metrics.earningPotential,
-                    resonance: nextState.metrics.avgResonance,
-                    survival: sRate
-                })
-
                 set({ sandboxState: nextState })
                 
                 // ANSI colors for report
