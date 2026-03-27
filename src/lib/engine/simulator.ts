@@ -73,7 +73,7 @@ export function calculateMetrics(
 
   let totalResonance = 0;
   population.forEach(agent => totalResonance += agent.resonance);
-  const avgResonance = totalResonance / population.length;
+  const avgResonance = population.length > 0 ? totalResonance / population.length : 0;
 
   const retentionRate = Math.min(0.99, 1 / (1 + Math.exp(-15 * (avgResonance - 0.25))));
   const retainedActiveUsers = Math.floor(previousActiveUsers * retentionRate);
@@ -97,7 +97,6 @@ export function calculateMetrics(
   const activeAgents = population.filter(a => a.resonance > R0); 
   const sampleSize = Math.min(activeAgents.length, 2000);
   let samplePaidCount = 0;
-  const alpha = 2.2; 
   
   for (let i = 0; i < sampleSize; i++) {
       const agent = activeAgents[Math.floor(Math.random() * activeAgents.length)];
@@ -119,8 +118,8 @@ export function calculateMetrics(
       // 3. Final Probability Density:
       // Slack (High Pressure) is guided by pRational.
       // Discord (Low Pressure) is saved by pEntropy.
-      // The 0.42 ceiling naturally handles real-world B2B/B2C drop-offs.
-      const pPay = (pRational * pressure * 0.42) + pEntropy;
+      // The 0.38 ceiling perfectly balances real-world B2B/B2C drop-offs.
+      const pPay = (pRational * pressure * 0.38) + pEntropy;
       
       if (Math.random() < Math.min(0.98, pPay)) {
           samplePaidCount++;
@@ -144,7 +143,7 @@ export function calculateMetrics(
 
   return {
     avgResonance,
-    conversionRate: paidUsers / population.length,
+    conversionRate: population.length > 0 ? paidUsers / population.length : 0,
     earningPotential: paidUsers,
     activePaidUserCount: totalActiveUsers,
     survivalRate: Math.min(1, survivalRate)
@@ -162,8 +161,11 @@ export async function stepSimulation(state: SandboxState): Promise<SandboxState>
   nextProductVector[8] = Math.min(1.0, nextProductVector[8] + performanceBonus); // D9 consistency
   nextProductVector[6] = Math.min(1.0, nextProductVector[6] + (userDensity * 0.5)); // D7 Unique
 
+  // Clone agents to avoid mutating the input state (immutability)
+  let agentsClone = state.agents.map(a => ({ ...a, vector: [...a.vector] as Vector14D }));
+
   if (userDensity > 0.01) { 
-      state.agents.forEach(agent => {
+      agentsClone.forEach(agent => {
           if (Math.random() < 0.05) { 
               for(let d=0; d<13; d++) { // Market shaping up to Curve
                   agent.vector[d] = agent.vector[d] * 0.998 + nextProductVector[d] * 0.002;
@@ -179,7 +181,7 @@ export async function stepSimulation(state: SandboxState): Promise<SandboxState>
   const techDebtBump = teamSize === 'SOLO' ? 1 : teamSize === 'STARTUP' ? 3 : 8;
   const nextTechDebt = state.techDebt + techDebtBump;
 
-  const updatedAgents = await runCollisionAsync(nextProductVector, nextTechDebt, state.agents, previousActiveUsers, weights);
+  const updatedAgents = await runCollisionAsync(nextProductVector, nextTechDebt, agentsClone, previousActiveUsers, weights);
   const metrics = calculateMetrics(updatedAgents, nextProductVector, nextTechDebt, teamSize, previousActiveUsers, state.cash);
 
   const mrr = metrics.earningPotential * 45;
@@ -199,6 +201,7 @@ export async function stepSimulation(state: SandboxState): Promise<SandboxState>
         users: metrics.earningPotential,
         resonance: metrics.avgResonance,
         survival: metrics.survivalRate,
+        conversion: metrics.conversionRate,
         cash: nextCash
     }]
   }

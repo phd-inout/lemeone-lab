@@ -5,7 +5,7 @@ import {
     generatePopulation,
     stepSimulation
 } from './simulator';
-import { Vector13D, PopulationSeed, AgentDNA, SandboxState } from './types';
+import { Vector14D, PopulationSeed, AgentDNA, SandboxState } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -16,13 +16,13 @@ import { v4 as uuidv4 } from 'uuid';
 async function runComprehensiveAudit() {
     console.log("📐 [AUDIT] STARTING FULL SPECTRUM MATHEMATICAL VALIDATION\n");
 
-    const baseVector: Vector13D = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+    const baseVector: Vector14D = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
     
     // --- 1. NORMALIZATION & WEIGHTS ---
     console.log("1️⃣ [WEIGHTED_COSINE] Testing Normalization...");
-    const extremeWeights: Vector13D = [1, 1, 1, 1, 1, 1, 1, 100, 1, 1, 1, 1, 1];
-    const testV1: Vector13D = [...baseVector];
-    const testV2: Vector13D = [...baseVector];
+    const extremeWeights: Vector14D = [1, 1, 1, 1, 1, 1, 1, 100, 1, 1, 1, 1, 1, 1];
+    const testV1: Vector14D = [...baseVector];
+    const testV2: Vector14D = [...baseVector];
     testV2[7] = 1.0; // Perfect match on weighted dimension
     
     const sim = calculateCosineSimilarity(testV1, testV2, extremeWeights);
@@ -32,9 +32,9 @@ async function runComprehensiveAudit() {
 
     // --- 2. DISTANCE PENALTY (OVER-ENGINEERING) ---
     console.log("\n2️⃣ [DISTANCE_PENALTY] Testing Magnitude Fit...");
-    const userV: Vector13D = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2];
-    const matchProduct: Vector13D = [...userV];
-    const overEngProduct: Vector13D = [0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9];
+    const userV: Vector14D = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2];
+    const matchProduct: Vector14D = [...userV];
+    const overEngProduct: Vector14D = [0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9];
     
     // Both have same direction (cos sim = 1), but different magnitude
     const popForDist = [{ id: '1', vector: userV, resonance: 0 }] as AgentDNA[];
@@ -49,9 +49,9 @@ async function runComprehensiveAudit() {
     console.log("\n3️⃣ [OUTLIER_LOGIC] Testing Minority Fragility...");
     const outlierSeed: PopulationSeed = {
         mean: baseVector,
-        std: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
-        weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        outliers: [[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]] // Very different from mean
+        std: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01],
+        weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        outliers: [[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]] // Very different from mean
     };
     const popWithOutliers = generatePopulation(outlierSeed, 1000);
     const outliers = popWithOutliers.filter(a => a.isOutlier);
@@ -67,8 +67,8 @@ async function runComprehensiveAudit() {
 
     // --- 4. POPULATION VARIANCE (STD) ---
     console.log("\n4️⃣ [VARIANCE_IMPACT] Testing Document Detail (std)...");
-    const lowStdSeed = { ...outlierSeed, std: Array(13).fill(0.01) as any, outliers: [] };
-    const highStdSeed = { ...outlierSeed, std: Array(13).fill(0.4) as any, outliers: [] };
+    const lowStdSeed = { ...outlierSeed, std: Array(14).fill(0.01) as any, outliers: [] };
+    const highStdSeed = { ...outlierSeed, std: Array(14).fill(0.4) as any, outliers: [] };
     
     const lowStdPop = runCollision(baseVector, 0, generatePopulation(lowStdSeed, 1000), 0);
     const highStdPop = runCollision(baseVector, 0, generatePopulation(highStdSeed, 1000), 0);
@@ -94,7 +94,7 @@ async function runComprehensiveAudit() {
         currentStage: 'SEED',
         productVector: baseVector,
         agents: generatePopulation(outlierSeed, 1000),
-        metrics: { avgResonance: 0, conversionRate: 0, earningPotential: 0, survivalRate: 1.0 },
+        metrics: { avgResonance: 0, conversionRate: 0, earningPotential: 0, survivalRate: 1.0, activePaidUserCount: 0 },
         assets: { proposal: '', backlog: '', marketFeedback: '', stressTestReport: '', journal: '' },
         history: []
     };

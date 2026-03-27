@@ -33,14 +33,16 @@ const RESPONSE_SCHEMA = {
                             D2_DEPTH: { type: "NUMBER" },
                             D3_INTERACT: { type: "NUMBER" },
                             D4_STABLE: { type: "NUMBER" },
-                            D5_FRICTION: { type: "NUMBER" },
-                            D6_UNIQUE: { type: "NUMBER" },
-                            D7_SOCIAL: { type: "NUMBER" },
-                            D8_CONSISTENCY: { type: "NUMBER" },
-                            D9_ECO: { type: "NUMBER" },
-                            D10_BARRIER: { type: "NUMBER" },
-                            D11_GLOBAL: { type: "NUMBER" },
-                            D12_CURVE: { type: "NUMBER" }
+                            D5_EASE: { type: "NUMBER" },
+                            D6_MONETIZE: { type: "NUMBER" },
+                            D7_UNIQUE: { type: "NUMBER" },
+                            D8_SOCIAL: { type: "NUMBER" },
+                            D9_CONSISTENCY: { type: "NUMBER" },
+                            D10_ECOSYSTEM: { type: "NUMBER" },
+                            D11_BARRIER: { type: "NUMBER" },
+                            D12_GLOBAL: { type: "NUMBER" },
+                            D13_CURVE: { type: "NUMBER" },
+                            D14_AWARE: { type: "NUMBER" }
                         }
                     },
                     macro_modifiers: {

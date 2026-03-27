@@ -19,8 +19,8 @@ export async function login(formData: FormData) {
     redirect('/login?error=Invalid%20credentials')
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/')
+  revalidatePath('/sequencer', 'layout')
+  redirect('/sequencer')
 }
 
 export async function signup(formData: FormData) {
@@ -38,8 +38,8 @@ export async function signup(formData: FormData) {
     redirect('/login?error=Failed%20to%20register')
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/')
+  revalidatePath('/sequencer', 'layout')
+  redirect('/sequencer')
 }
 
 export async function logout() {

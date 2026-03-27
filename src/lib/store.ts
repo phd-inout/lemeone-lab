@@ -3,14 +3,15 @@ import { persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
 import {
     SandboxState,
-    Vector13D,
+    Vector14D,
     AgentDNA,
     PopulationSeed,
     DIM,
     UserTier,
     TIER_LIMITS,
-    TeamSize
+    TeamSize,
 } from './engine/types'
+import { loadIndustryProfile } from './engine/industry-loader'
 import { 
     generatePopulation, 
     stepSimulation, 
@@ -65,20 +66,50 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const tier = requestedTier || get().userTier
                 const limits = TIER_LIMITS[tier]
                 
-                get().pushLine(`[SYSTEM] Initializing scan protocol...`)
-                get().pushLine(`[SYSTEM] Scanning seed text: "${seedText.substring(0, 40)}..."`)
+                get().pushLine(`\x1b[36m\x1b[1m╔═ [LEMEONE-LAB 2.0] 初始化协议启动 ═══════════════════════╗\x1b[0m`)
+                get().pushLine(`\x1b[36m║\x1b[0m  \x1b[90m输入摘要:\x1b[0m "${seedText.substring(0, 60)}${seedText.length > 60 ? '...' : ''}"`) 
+                get().pushLine(`\x1b[36m║\x1b[0m  \x1b[90m分辨率:\x1b[0m   ${tier} (${limits.maxAgents.toLocaleString()} Agents)`)
                 
-                // Fetch live news impact for grounding
-                import('./engine/research').then(async ({ fetchNewsAnalysis }) => {
-                    const news = await fetchNewsAnalysis(seedText)
-                    if (news.headline) {
-                        get().pushLine(`[RESEARCH] 锚定成功: ${news.headline}`)
-                        if (news.error) {
-                            get().pushLine(`[RESEARCH_ERR] ${news.error}`)
+                // Phase 1: Industry Lock-on
+                const industryCtx = loadIndustryProfile(seedText);
+                if (industryCtx) {
+                    get().pushLine(`\x1b[36m║\x1b[0m`)
+                    get().pushLine(`\x1b[36m║\x1b[0m  \x1b[35m\x1b[1m[🔬 行业锁定]\x1b[0m ${industryCtx.name}`)
+                    get().pushLine(`\x1b[36m║\x1b[0m  \x1b[90m搜索关键词:\x1b[0m ${industryCtx.keywords.join(' · ')}`)
+                    if (industryCtx.hardConstraints.length > 0) {
+                        get().pushLine(`\x1b[36m║\x1b[0m  \x1b[31m物理死穴:\x1b[0m   ${industryCtx.hardConstraints.map(c => `${c.dim}≥${c.floor}`).join(', ')}`)
+                    }
+                } else {
+                    get().pushLine(`\x1b[36m║\x1b[0m  \x1b[33m[行业] 未匹配到特定行业，使用通用基准\x1b[0m`)
+                }
+                get().pushLine(`\x1b[36m╚════════════════════════════════════════════════════════╝\x1b[0m`)
+
+                // Phase 2: Industry News Research (async, non-blocking)
+                get().pushLine(`\x1b[90m[🌐 RESEARCH] 正在搜索行业实时动态...\x1b[0m`)
+                import('./engine/research').then(async ({ fetchIndustryGroundedNews }) => {
+                    const news = await fetchIndustryGroundedNews(seedText, industryCtx)
+                    if (news.headline && !news.error) {
+                        get().pushLine(`\x1b[32m[🌐 RESEARCH] 锚定成功:\x1b[0m ${news.headline}`)
+                        if (news.industry_impacts?.length > 0) {
+                            const impact = news.industry_impacts[0]
+                            const topDims = Object.entries(impact.vector_perturbation || {})
+                                .filter(([, v]) => Math.abs(v) >= 0.05)
+                                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                                .slice(0, 3)
+                            if (topDims.length > 0) {
+                                get().pushLine(`\x1b[90m[🌐 RESEARCH] 主要扰动: ${topDims.map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v.toFixed(2)}`).join(', ')}\x1b[0m`)
+                            }
                         }
+                        if (news.auditor_alert) {
+                            get().pushLine(`\x1b[31m\x1b[1m[⚠️ 审计警报] ${news.auditor_alert}\x1b[0m`)
+                        }
+                    } else if (news.error) {
+                        get().pushLine(`\x1b[33m[🌐 RESEARCH] ${news.error}\x1b[0m`)
                     }
                 })
 
+                // Phase 3: Cortex Scanning
+                get().pushLine(`\x1b[90m[📊 SCORING] 启动 14D 商业基因扫描...\x1b[0m`)
                 const history = [`User: ${seedText}`]
                 const { seed, terminalOutput, isComplete, draftContent } = await scanSeed(history, '')
                 
@@ -95,18 +126,28 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     return
                 }
 
-                // If complete on first try (e.g. detailed PRD)
-                get().pushLine(`[SYSTEM] 逻辑自洽检测通过，准备执行万次碰撞...`)
+                // Phase 4: Show 14D Scoring Summary
+                get().pushLine(`\x1b[32m[📊 SCORING] 14D 商业基因向量已生成:\x1b[0m`)
+                get().pushLine(`\x1b[90m   核心爽点 D1-D4 : [${seed.mean.slice(0,4).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   获客血槽 D5-D6 : [${seed.mean.slice(4,6).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   市场引擎 D7-D9 : [${seed.mean.slice(6,9).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   护城壁垒 D10-D13: [${seed.mean.slice(9,13).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   认知半径 D14    : [${seed.mean[13]?.toFixed(2) ?? 'N/A'}]\x1b[0m`)
+
+                // Phase 5: Collision & Initialize
+                get().pushLine(`\x1b[36m[⚡ COLLISION] 逻辑自洽检测通过，正在执行 ${limits.maxAgents.toLocaleString()} 并行碰撞...\x1b[0m`)
                 const proposal = await generateProposal(seed, seedText)
                 const initialPopulation = generatePopulation(seed, limits.maxAgents)
                 const agents = await import('./engine/simulator').then(m => m.runCollisionAsync(seed.mean, 0, initialPopulation, 0))
-                const initialMetrics = calculateMetrics(agents, 0, 'STARTUP')
+                const initialMetrics = calculateMetrics(agents, seed.mean, 0, 'STARTUP')
                 
                 const initialState: SandboxState = {
                     id: uuidv4(),
                     tier,
                     epoch: 0,
                     teamSize: 'STARTUP',
+                    cash: 100000,
+                    burnRate: 20000,
                     techDebt: 0,
                     currentStage: 'SEED',
                     productVector: seed.mean,
@@ -115,6 +156,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     assets: {
                         proposal,
                         backlog: '# PRODUCT_BACKLOG\nRun audit to generate...',
+                        marketFeedback: '',
                         journal: '# STRATEGIC DRIFT JOURNAL\n\n> System Initialize [T+0]\n> Baseline recorded.\n',
                         stressTestReport: '',
                         competitiveRadar: '# COMPETITIVE RADAR\nRun audit to generate...'
@@ -123,12 +165,14 @@ export const useLemeoneStore = create<LemeoneStore>()(
                         epoch: 0,
                         users: initialMetrics.earningPotential,
                         resonance: initialMetrics.avgResonance,
-                        survival: initialMetrics.survivalRate
+                        survival: initialMetrics.survivalRate,
+                        conversion: initialMetrics.conversionRate,
+                        cash: 100000
                     }]
                 }
 
                 set({ sandboxState: initialState, isRunning: true, isInterviewing: false })
-                get().pushLine(`[SYSTEM] Gravity Sandbox Initialized. Execute 'dev' to step.`)
+                get().pushLine(`\x1b[32m\x1b[1m[✓ READY] 重力沙盒已就绪 (T+0)\x1b[0m — 输入 \x1b[36mdev\x1b[0m 推进周期，\x1b[36mstat\x1b[0m 查看向量，\x1b[36maudit\x1b[0m 启动审计`)
             },
 
             answerInterview: async (text: string) => {
@@ -152,19 +196,29 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     return
                 }
 
-                // Transition to Simulation
-                get().pushLine(`[SYSTEM] $V_{product}$ 扫描完毕。正在构建 10,000 并行沙盒...`)
+                // Show 14D Scoring Summary
+                get().pushLine(`\x1b[32m[📊 SCORING] 14D 商业基因向量已生成:\x1b[0m`)
+                get().pushLine(`\x1b[90m   核心爽点 D1-D4 : [${seed.mean.slice(0,4).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   获客血槽 D5-D6 : [${seed.mean.slice(4,6).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   市场引擎 D7-D9 : [${seed.mean.slice(6,9).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   护城壁垒 D10-D13: [${seed.mean.slice(9,13).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   认知半径 D14    : [${seed.mean[13]?.toFixed(2) ?? 'N/A'}]\x1b[0m`)
+
+                // Build Simulation
                 const limits = TIER_LIMITS[userTier]
+                get().pushLine(`\x1b[36m[⚡ COLLISION] 正在构建 ${limits.maxAgents.toLocaleString()} 并行沙盒...\x1b[0m`)
                 const proposal = await generateProposal(seed, newHistory.join('\n'))
                 const initialPopulation = generatePopulation(seed, limits.maxAgents)
                 const agents = await import('./engine/simulator').then(m => m.runCollisionAsync(seed.mean, 0, initialPopulation, 0))
-                const initialMetrics = calculateMetrics(agents, 0, 'STARTUP')
+                const initialMetrics = calculateMetrics(agents, seed.mean, 0, 'STARTUP')
 
                 const initialState: SandboxState = {
                     id: uuidv4(),
                     tier: userTier,
                     epoch: 0,
                     teamSize: 'STARTUP',
+                    cash: 100000,
+                    burnRate: 20000,
                     techDebt: 0,
                     currentStage: 'SEED',
                     productVector: seed.mean,
@@ -173,6 +227,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     assets: {
                         proposal,
                         backlog: '# PRODUCT_BACKLOG\nRun audit to generate...',
+                        marketFeedback: '',
                         journal: '# STRATEGIC DRIFT JOURNAL\n\n> System Initialize [T+0]\n> Baseline recorded.\n',
                         stressTestReport: '',
                         competitiveRadar: '# COMPETITIVE RADAR\nRun audit to generate...'
@@ -181,7 +236,9 @@ export const useLemeoneStore = create<LemeoneStore>()(
                         epoch: 0,
                         users: initialMetrics.earningPotential,
                         resonance: initialMetrics.avgResonance,
-                        survival: initialMetrics.survivalRate
+                        survival: initialMetrics.survivalRate,
+                        conversion: initialMetrics.conversionRate,
+                        cash: 100000
                     }]
                 }
 
@@ -191,7 +248,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     isInterviewing: false,
                     draftSpec: draftContent || draftSpec
                 })
-                get().pushLine(`[SYSTEM] Sandbox Active. Input 'dev' to start epoch collision.`)
+                get().pushLine(`\x1b[32m\x1b[1m[✓ READY] 重力沙盒已就绪 (T+0)\x1b[0m — 输入 \x1b[36mdev\x1b[0m 推进周期，\x1b[36mstat\x1b[0m 查看向量，\x1b[36maudit\x1b[0m 启动审计`)
             },
 
             step: async () => {
@@ -216,14 +273,26 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 const diffDebt = nextState.techDebt - s.techDebt
 
+                const runway = nextState.burnRate > 0 ? Math.max(0, Math.floor(nextState.cash / nextState.burnRate)) : 999
+                const runwayColor = runway > 12 ? g : runway > 6 ? y : r
+
                 const report = [
-                    `\n${g}╔═ [EPOCH ADVANCED TO T+${nextState.epoch}] ═════════════════════════════════╗${res}`,
-                    `${g}║${res}  ACTIVE_USERS (Probabilistic): ${c}${nextState.metrics.earningPotential.toLocaleString()}${res} / ${nextState.agents.length.toLocaleString()}`,
-                    `${g}║${res}  CONVERSION_CR:        ${b}${(nextState.metrics.conversionRate * 100).toFixed(2)}%${res}`,
-                    `${g}║${res}  AVG_RESONANCE:        ${nextState.metrics.avgResonance.toFixed(4)}`,
-                    `${g}║${res}  TECH_DEBT_PENALTY:    ${y}+${diffDebt.toFixed(1)}%${res} (TOTAL: ${nextState.techDebt.toFixed(1)}%)`,
-                    `${g}║${res}  SURVIVAL_CHANCE:      ${sRate > 0.5 ? g : r}${(sRate * 100).toFixed(1)}%${res}`,
-                    `${g}╚═══════════════════════════════════════════════════════╝${res}`
+                    `\n${g}╔═ [EPOCH T+${nextState.epoch}] ════════════════════════════════════════════╗${res}`,
+                    `${g}║${res}  \x1b[90m用户增长\x1b[0m`,
+                    `${g}║${res}    活跃付费用户:    ${c}${nextState.metrics.earningPotential.toLocaleString()}${res} / ${nextState.agents.length.toLocaleString()}`,
+                    `${g}║${res}    转化率:          ${b}${(nextState.metrics.conversionRate * 100).toFixed(2)}%${res}`,
+                    `${g}║${res}    平均共鸣度:      ${nextState.metrics.avgResonance.toFixed(4)}`,
+                    `${g}║${res}`,
+                    `${g}║${res}  \x1b[90m财务健康\x1b[0m`,
+                    `${g}║${res}    现金余额:        ${c}$${nextState.cash.toLocaleString()}${res}`,
+                    `${g}║${res}    月度燃烧:        ${y}-$${nextState.burnRate.toLocaleString()}/mo${res}`,
+                    `${g}║${res}    存活跑道:        ${runwayColor}${runway} 个月${res}`,
+                    `${g}║${res}    预估 MRR:         ${c}$${(nextState.metrics.earningPotential * 15).toLocaleString()}${res}`,
+                    `${g}║${res}`,
+                    `${g}║${res}  \x1b[90m系统健康\x1b[0m`,
+                    `${g}║${res}    技术债务:        ${y}+${diffDebt.toFixed(1)}%${res} (累计: ${nextState.techDebt.toFixed(1)}%)`,
+                    `${g}║${res}    生存概率:        ${sRate > 0.5 ? g : r}${(sRate * 100).toFixed(1)}%${res}`,
+                    `${g}╚════════════════════════════════════════════════════════╝${res}`
                 ]
                 
                 report.forEach(line => get().pushLine(line))
@@ -233,7 +302,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const s = get().sandboxState
                 if (!s) return
 
-                const nextVector = [...s.productVector] as Vector13D
+                const nextVector = [...s.productVector] as Vector14D
                 nextVector[DIM[dim]] = Math.max(0, Math.min(1, value))
                 const updatedAgents = runCollision(nextVector, s.techDebt, s.agents, s.metrics.earningPotential)
                 const nextJournal = s.assets.journal + `\n> **[CMD]** Explicitly adjusted parameter \`${String(dim)}\` to \`${value.toFixed(2)}\` at T+${s.epoch}.\n`
@@ -259,7 +328,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 
                 const nextVector = s.productVector.map((v, i) => 
                     Math.max(0, Math.min(1, v * 0.8 + perturbation.mean[i] * 0.2))
-                ) as Vector13D
+                ) as Vector14D
 
                 const updatedAgents = runCollision(nextVector, s.techDebt + 5, s.agents, s.metrics.earningPotential)
 
@@ -302,7 +371,9 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const s = get().sandboxState
                 if (!s) return
 
-                get().pushLine("[SYSTEM] Triggering Deep AI Audit...")
+                get().pushLine(`\x1b[35m[🔍 AUDIT] 启动战略一致性深度审计 (T+${s.epoch})...\x1b[0m`)
+                get().pushLine(`\x1b[90m[🔍 AUDIT] 正在生成压力测试报告...\x1b[0m`)
+                get().pushLine(`\x1b[90m[🔍 AUDIT] 正在扫描竞争格局雷达...\x1b[0m`)
                 const auditResults = await runAudit(s)
                 const nextJournal = s.assets.journal + `\n> **[CMD]** Triggered deep AI Audit at T+${s.epoch}.\n`
 
@@ -316,7 +387,13 @@ export const useLemeoneStore = create<LemeoneStore>()(
                         }
                     }
                 })
-                get().pushLine("[SYSTEM] Strategic Assets updated.")
+                get().pushLine(`\x1b[32m[🔍 AUDIT] 审计完成！战略资产已更新。\x1b[0m`)
+                // Extract summary from stress test report
+                if (auditResults.stressTestReport) {
+                    const summaryLines = auditResults.stressTestReport.split('\n').filter(l => l.trim()).slice(0, 3)
+                    summaryLines.forEach(l => get().pushLine(`\x1b[90m   ${l.replace(/^#+\s*/, '').substring(0, 80)}\x1b[0m`))
+                }
+                get().pushLine(`\x1b[90m   输入 \x1b[36mstat\x1b[90m 查看完整向量 | 查看 STRESS_TEST_REPORT 和 COMPETITIVE_RADAR 文档获取详细分析\x1b[0m`)
             },
 
             reset: () => set({ 

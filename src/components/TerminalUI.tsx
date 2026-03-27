@@ -176,12 +176,13 @@ case 'stat':
                 if (!s) {
                     print(`${C.gray}Simulation not initialized.${C.reset}`)
                 } else {
-                    print(`\n${C.cyan}╔═ PRODUCT VECTOR (13D) ══════════════════╗${C.reset}`)
+                    print(`\n${C.cyan}╔═ PRODUCT VECTOR (14D) ══════════════════╗${C.reset}`)
                     print(`${C.cyan}║${C.reset}  RESOLUTION: ${C.bold}${s.tier}${C.reset} (${s.agents.length.toLocaleString()} Agents) - EPOCH: ${C.bold}T+${s.epoch}${C.reset}`)
                     print(`${C.cyan}║${C.reset}  D1-D4 [CORE]: P:${s.productVector[0].toFixed(3)} D:${s.productVector[1].toFixed(3)} I:${s.productVector[2].toFixed(3)} S:${s.productVector[3].toFixed(3)}`)
-                    print(`${C.cyan}║${C.reset}  D5-D8 [MKT]:  F:${s.productVector[4].toFixed(3)} U:${s.productVector[5].toFixed(3)} S:${s.productVector[6].toFixed(3)} C:${s.productVector[7].toFixed(3)}`)
-                    print(`${C.cyan}║${C.reset}  D9-D12[STR]:  E:${s.productVector[8].toFixed(3)} B:${s.productVector[9].toFixed(3)} G:${s.productVector[10].toFixed(3)} C:${s.productVector[11].toFixed(3)}`)
-                    print(`${C.cyan}║${C.reset}  D13   [GTM]:  AWARENESS:${s.productVector[12].toFixed(3)}`)
+                    print(`${C.cyan}║${C.reset}  D5-D6 [GATE]: ENTRY:${s.productVector[4].toFixed(3)} MONETIZE:${s.productVector[5].toFixed(3)}`)
+                    print(`${C.cyan}║${C.reset}  D7-D9 [MKT]:  U:${s.productVector[6].toFixed(3)} S:${s.productVector[7].toFixed(3)} C:${s.productVector[8].toFixed(3)}`)
+                    print(`${C.cyan}║${C.reset}  D10-D13[STR]: E:${s.productVector[9].toFixed(3)} B:${s.productVector[10].toFixed(3)} G:${s.productVector[11].toFixed(3)} C:${s.productVector[12].toFixed(3)}`)
+                    print(`${C.cyan}║${C.reset}  D14   [GTM]:  AWARENESS:${s.productVector[13].toFixed(3)}`)
                     print(`${C.cyan}╚═════════════════════════════════════════╝${C.reset}`)
                     print(`${C.yellow}TEAM_SIZE: ${s.teamSize}  SURVIVAL_RATE: ${(s.metrics.survivalRate*100).toFixed(1)}%  EARNING_POTENTIAL: ${s.metrics.earningPotential}${C.reset}`)
                 }

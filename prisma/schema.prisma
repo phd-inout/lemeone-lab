@@ -11,6 +11,12 @@ datasource db {
   extensions = [vector]
 }
 
+enum UserTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
 // ============================================================
 // User — 玩家账号
 // ============================================================
@@ -18,6 +24,7 @@ model User {
   id        String   @id
   email     String   @unique
   username  String?
+  tier      UserTier @default(FREE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -36,8 +43,11 @@ model Rehearsal {
   userId    String?
   user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  // 12 维产品向量快照
+  // 14 维产品向量快照 (14D Vector)
   productVector Json
+
+  // 模拟设置
+  populationSize Int @default(100) // 100 for FREE, 10000 for PRO, 100000 for ENTERPRISE
 
   // 战略资产 (Strategic Assets) - 存储生成的 Markdown 内容
   // 包含: PROPOSAL, BACKLOG, MARKET_FEEDBACK, STRESS_TEST_REPORT
@@ -68,7 +78,7 @@ model ProductLine {
   name             String?
   industry         String
   
-  // 12 维产品向量
+  // 14 维产品向量
   vector Json
 
   rehearsal Rehearsal @relation(fields: [rehearsalId], references: [id], onDelete: Cascade)
