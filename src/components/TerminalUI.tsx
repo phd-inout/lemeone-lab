@@ -334,7 +334,7 @@ case 'stat':
                                 </div>
                                 {q.type === 'choice' && (
                                     <div className="flex flex-wrap gap-2 mt-1">
-                                        {q.options?.map((opt) => (
+                                        {q.options?.map((opt: any) => (
                                             <button
                                                 key={opt.value}
                                                 onClick={() => {

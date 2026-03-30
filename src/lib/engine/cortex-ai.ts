@@ -163,6 +163,7 @@ export async function scanSeed(history: string[], currentDraft: string): Promise
     return {
       seed: fallbackSeed,
       terminalOutput: `[SYS_ERR] Cortex Scanner 连接超时或 JSON 解析失败。\n\n> Details: ${error.message}`,
+      questions: [],
       isComplete: false,
       draftContent: currentDraft
     }
