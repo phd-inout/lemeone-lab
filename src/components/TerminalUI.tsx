@@ -21,6 +21,11 @@ const C = {
 const HELP_TEXT = `
 ${C.cyan}${C.bold}LEMEONE_LAB v2.0 CLI${C.reset} ${C.gray}— 重力沙盒操作系统 (Gravity Sandbox OS)${C.reset}
 
+${C.bold}项目管理${C.reset}
+  ${C.green}project new "<名称>"${C.reset} - 创建一个新的项目/公司案卷
+  ${C.green}project list${C.reset}         -列出已有的历史项目
+  ${C.green}project load <ID>${C.reset}    - 切换到指定的项目
+
 ${C.bold}初始化${C.reset}
   ${C.green}scan "<描述>"${C.reset}   - 从文本或文件初始化商业基因扫描
   ${C.green}tier <等级>${C.reset}     - 升级分辨率 (FREE, PRO, ULTRA, ENTERPRISE)
@@ -62,6 +67,10 @@ export default function TerminalUI() {
         audit, 
         reset, 
         upgradeTier,
+        activeProjectId,
+        projectsList,
+        createProject,
+        loadProject,
         setARPU,
         terminalLines,
         isInterviewing,
@@ -125,6 +134,46 @@ export default function TerminalUI() {
                 break
             case 'clear':
                 term.clear()
+                break
+            case 'project':
+                const subCmd = args[0]?.toLowerCase()
+                if (subCmd === 'new') {
+                    const name = args.slice(1).join(' ')
+                    if (!name) {
+                        print(`${C.red}[ERR] Missing project name. Usage: project new "Name"${C.reset}`)
+                    } else {
+                        print(`${C.cyan}[PROJECT] 正在创建项目: ${name}...${C.reset}`)
+                        await useLemeoneStore.getState().createProject(name)
+                    }
+                } else if (subCmd === 'list') {
+                    const projects = useLemeoneStore.getState().projectsList
+                    if (projects.length === 0) {
+                        print(`${C.gray}没有找到任何项目。请使用 project new <name> 创建。${C.reset}`)
+                    } else {
+                        print(`\n${C.cyan}╔═ PROJECTS LIST ═════════════════════════╗${C.reset}`)
+                        projects.forEach(p => {
+                            const isCurrent = p.id === useLemeoneStore.getState().activeProjectId
+                            print(`${C.cyan}║${C.reset} ${isCurrent ? C.green + '*' : ' '} ${p.id.substring(0,8)} | ${p.name} | ${new Date(p.createdAt).toLocaleDateString()}`)
+                        })
+                        print(`${C.cyan}╚═════════════════════════════════════════╝${C.reset}`)
+                        print(`${C.gray}使用 'project load <ID前缀>' 来切换项目${C.reset}`)
+                    }
+                } else if (subCmd === 'load') {
+                    const searchId = args[1]
+                    if (!searchId) {
+                        print(`${C.red}[ERR] Missing project ID. Usage: project load <ID>${C.reset}`)
+                    } else {
+                        const project = useLemeoneStore.getState().projectsList.find(p => p.id.startsWith(searchId))
+                        if (project) {
+                            print(`${C.cyan}[PROJECT] 加载项目...${C.reset}`)
+                            await useLemeoneStore.getState().loadProject(project.id)
+                        } else {
+                            print(`${C.red}[ERR] 未找到 ID 匹配 "${searchId}" 的项目${C.reset}`)
+                        }
+                    }
+                } else {
+                    print(`${C.red}[ERR] 未知子命令。用法: project new <name> | list | load <id>${C.reset}`)
+                }
                 break
             case 'scan':
                 if (args.length === 0) {
@@ -284,7 +333,8 @@ case 'stat':
         term.writeln(`${C.gray}  v2.0 Gravity Sandbox — 14D 商业模拟引擎${C.reset}`)
         term.writeln(`${C.gray}  ─────────────────────────────────────────────────${C.reset}`)
         term.writeln(`${C.yellow}  提示：描述越模糊，σ (不确定性) 越高，模拟中的现金流崩塌风险越大。${C.reset}`)
-        term.writeln(`${C.gray}  输入 ${C.green}scan "你的项目描述"${C.gray} 开始扫描 | ${C.green}help${C.gray} 查看全部命令${C.reset}\r\n`)
+        term.writeln(`${C.gray}  如果你是首次使用：输入 ${C.green}project new "你的项目"${C.gray} 创建档案 ${C.reset}`)
+        term.writeln(`${C.gray}  开始扫描：输入 ${C.green}scan "你的想法"${C.gray} | ${C.green}help${C.gray} 查看全部命令${C.reset}\r\n`)
 
         // Native terminal input has been migrated to the external HTML input bar below for better UX
 

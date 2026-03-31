@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma'
 /**
  * Creates a brand new Rehearsal record for the 2.0 Gravity Sandbox.
  */
-export async function createRehearsal(sessionId: string, state: SandboxState): Promise<string> {
+export async function createRehearsal(sessionId: string, projectId: string, state: SandboxState): Promise<string> {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -17,6 +17,7 @@ export async function createRehearsal(sessionId: string, state: SandboxState): P
             data: {
                 sessionId,
                 userId: user?.id || null,
+                projectId,
                 productVector: state.productVector as any,
                 assets: state.assets as any,
                 cash: state.metrics.earningPotential,

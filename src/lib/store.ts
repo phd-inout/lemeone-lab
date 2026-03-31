@@ -10,6 +10,8 @@ import {
     UserTier,
     TIER_LIMITS,
     TeamSize,
+    ProjectData,
+    InterviewQuestion,
 } from './engine/types'
 import { 
     generatePopulation, 
@@ -34,6 +36,13 @@ interface LemeoneStore {
     draftSpec: string
     terminalLines: string[]
     
+    activeProjectId: string | null
+    projectsList: ProjectData[]
+
+    // Project Actions
+    createProject: (name: string, description?: string) => Promise<string>
+    loadProject: (projectId: string) => Promise<void>
+
     // Core Actions
     initSimulation: (seedText: string, requestedTier?: UserTier) => Promise<void>
     answerInterview: (text: string, questionId?: string) => Promise<void>
@@ -61,12 +70,73 @@ export const useLemeoneStore = create<LemeoneStore>()(
             interviewHistory: [],
             draftSpec: '',
             terminalLines: [],
+            activeProjectId: null,
+            projectsList: [],
             setARPU: () => {},
+
+            createProject: async (name: string, description?: string) => {
+                try {
+                    const { createProjectAction } = await import('@/app/actions/project');
+                    const id = await createProjectAction(name, description);
+                    
+                    const newProject: ProjectData = {
+                        id,
+                        name,
+                        description,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    set(s => ({
+                        projectsList: [newProject, ...s.projectsList],
+                        activeProjectId: id,
+                        sandboxState: null,
+                        terminalLines: [...s.terminalLines.slice(-500), `\x1b[32m[PROJECT]\x1b[0m 已创建并切换至项目: ${name}`],
+                        isInterviewing: false,
+                        activeQuestions: [],
+                        draftSpec: ''
+                    }));
+                    
+                    return id;
+                } catch (e) {
+                    get().pushLine(`\x1b[31m[ERR]\x1b[0m 创建项目失败`);
+                    throw e;
+                }
+            },
+            
+            loadProject: async (projectId: string) => {
+                try {
+                    const { loadLatestRehearsalAction } = await import('@/app/actions/project');
+                    const rehearsalData = await loadLatestRehearsalAction(projectId);
+                    
+                    const project = get().projectsList.find(p => p.id === projectId);
+                    get().pushLine(`\x1b[32m[PROJECT]\x1b[0m 切换至项目: ${project?.name || projectId}`);
+                    
+                    set({
+                        activeProjectId: projectId,
+                        sandboxState: null,
+                        terminalLines: [...get().terminalLines],
+                        isInterviewing: false,
+                        activeQuestions: [],
+                        draftSpec: ''
+                    });
+                    
+                    if (rehearsalData) {
+                        get().pushLine(`\x1b[90m[SYSTEM]\x1b[0m 发现存档的商业侧视数据。当前暂不自动恢复全量 10000 智能体快照。请重新 scan。`);
+                    }
+                } catch (e) {
+                    get().pushLine(`\x1b[31m[ERR]\x1b[0m 切换项目失败`);
+                }
+            },
 
             pushLine: (line: string) =>
                 set(s => ({ terminalLines: [...s.terminalLines.slice(-500), line] })),
 
             initSimulation: async (seedText: string, requestedTier?: UserTier) => {
+                if (!get().activeProjectId) {
+                    get().pushLine(`\x1b[31m[ERR]\x1b[0m 请先使用 \x1b[36mproject new <公司/项目名称>\x1b[0m 创建一个案卷`);
+                    return;
+                }
+
                 const tier = requestedTier || get().userTier
                 const limits = TIER_LIMITS[tier]
                 
@@ -225,6 +295,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 const initialState: SandboxState = {
                     id: uuidv4(),
+                    projectId: get().activeProjectId || undefined,
                     tier: userTier,
                     epoch: 0,
                     teamSize: 'STARTUP',
@@ -422,6 +493,8 @@ export const useLemeoneStore = create<LemeoneStore>()(
             name: 'lemeone-2.0-storage',
             partialize: (state) => ({ 
                 userTier: state.userTier,
+                activeProjectId: state.activeProjectId,
+                projectsList: state.projectsList,
                 sandboxState: state.sandboxState ? { ...state.sandboxState, agents: [] } : null
             }),
         }

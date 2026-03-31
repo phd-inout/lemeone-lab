@@ -29,6 +29,21 @@ model User {
   updatedAt DateTime @updatedAt
 
   rehearsals Rehearsal[]
+  projects   Project[]
+}
+
+// ============================================================
+// Project — 商业案卷 / 项目集
+// ============================================================
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rehearsals  Rehearsal[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ============================================================
@@ -42,6 +57,9 @@ model Rehearsal {
   sessionId String
   userId    String?
   user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // 14 维产品向量快照 (14D Vector)
   productVector Json

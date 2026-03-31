@@ -56,8 +56,16 @@ export const TIER_LIMITS: Record<UserTier, { maxAgents: number; maxAuditsPerWeek
 /**
  * Rehearsal State (System 1)
  */
+export interface ProjectData {
+  id: string
+  name: string
+  description?: string
+  createdAt: string
+}
+
 export interface SandboxState {
   id: string
+  projectId?: string
   tier: UserTier 
   epoch: number
   teamSize: TeamSize
