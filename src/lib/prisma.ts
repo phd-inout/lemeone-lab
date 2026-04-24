@@ -1,11 +1,10 @@
-// Prisma 7 client using PgAdapter (driver adapter mode)
+// Prisma 7 client using builtin adapter
 import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
 
 function createPrismaClient() {
-    const connectionString = process.env.DATABASE_URL!
-    const adapter = new PrismaPg({ connectionString })
-    return new PrismaClient({ adapter })
+    // For Prisma 7 without adapter, we can set DATABASE_URL in environment
+    process.env.DATABASE_URL = "file:./lemeone.db"
+    return new PrismaClient()
 }
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient }

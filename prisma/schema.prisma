@@ -3,19 +3,13 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider   = "postgresql"
-  extensions = [vector]
+  provider = "sqlite"
 }
 
-enum UserTier {
-  FREE
-  PRO
-  ENTERPRISE
-}
+
 
 // ============================================================
 // User — 玩家账号
@@ -24,7 +18,7 @@ model User {
   id        String   @id
   email     String   @unique
   username  String?
-  tier      UserTier @default(FREE)
+  tier      String   @default("FREE")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -62,14 +56,14 @@ model Rehearsal {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // 14 维产品向量快照 (14D Vector)
-  productVector Json
+  productVector String
 
   // 模拟设置
   populationSize Int @default(100) // 100 for FREE, 10000 for PRO, 100000 for ENTERPRISE
 
   // 战略资产 (Strategic Assets) - 存储生成的 Markdown 内容
   // 包含: PROPOSAL, BACKLOG, MARKET_FEEDBACK, STRESS_TEST_REPORT
-  assets Json @default("{}")
+  assets String @default("{}")
 
   // 模拟运行数据
   cash         Float @default(100000)
@@ -78,7 +72,7 @@ model Rehearsal {
   currentStage String @default("SEED")
 
   // 历史快照记录 (JOURNAL.md 的数据源)
-  historyJson Json @default("[]")
+  historyJson String @default("[]")
 
   // 结局
   isFailed      Boolean @default(false)
@@ -97,7 +91,7 @@ model ProductLine {
   industry         String
   
   // 14 维产品向量
-  vector Json
+  vector String
 
   rehearsal Rehearsal @relation(fields: [rehearsalId], references: [id], onDelete: Cascade)
 }

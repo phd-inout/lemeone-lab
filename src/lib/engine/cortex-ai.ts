@@ -6,15 +6,16 @@ import fs from 'fs'
 import path from 'path'
 import { generateText } from 'ai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { 
-  Vector14D, 
-  PopulationSeed, 
+import {
+  Vector14D,
+  PopulationSeed,
   SandboxState,
-  InterviewQuestion 
+  InterviewQuestion,
+  MonetizationModel
 } from './types'
 
 export async function getIndustryContext(text: string): Promise<IndustryContext | null> {
-    return loadIndustryProfile(text);
+  return loadIndustryProfile(text);
 }
 
 export interface ScannerResponse {
@@ -49,7 +50,7 @@ const model = google('gemini-3.1-flash-lite-preview')
  */
 export async function scanSeed(history: string[], currentDraft: string): Promise<ScannerResponse> {
   const fullText = (currentDraft + " " + history.join(" ")).substring(0, 10000);
-  
+
   // Dynamic Industry Selection (Semantic AI Lock)
   const availableIndustries = getAllIndustries();
   const industryListStr = availableIndustries.map(i => `${i.id}: ${i.keywords.join('/')}`).join('\n');
@@ -121,26 +122,26 @@ ${industryListStr}
     }
     const jsonMatch = jsonStart >= 0 && jsonEnd > jsonStart ? [response.substring(jsonStart, jsonEnd)] : null;
     if (!jsonMatch) {
-        throw new Error('AI Response did not contain valid JSON object.')
+      throw new Error('AI Response did not contain valid JSON object.')
     }
     let parsed: any;
     try {
-        parsed = JSON.parse(jsonMatch[0])
+      parsed = JSON.parse(jsonMatch[0])
     } catch (e: any) {
-        throw new Error(`JSON Parse Error: ${e.message}`)
+      throw new Error(`JSON Parse Error: ${e.message}`)
     }
-    
-    const safeArray = (arr: any, len: number, defFn: (i:number)=>number) => {
-        const out = Array(len).fill(0).map((_, i) => defFn(i));
-        if (Array.isArray(arr)) {
-            for (let i = 0; i < Math.min(arr.length, len); i++) {
-                const val = arr[i];
-                if (typeof val === 'number' && !isNaN(val)) {
-                    out[i] = val;
-                }
-            }
+
+    const safeArray = (arr: any, len: number, defFn: (i: number) => number) => {
+      const out = Array(len).fill(0).map((_, i) => defFn(i));
+      if (Array.isArray(arr)) {
+        for (let i = 0; i < Math.min(arr.length, len); i++) {
+          const val = arr[i];
+          if (typeof val === 'number' && !isNaN(val)) {
+            out[i] = val;
+          }
         }
-        return out;
+      }
+      return out;
     };
 
     const seed = {
@@ -157,18 +158,18 @@ ${industryListStr}
     let forceIncomplete = false;
     const highUncertaintyDims = [];
     for (let i = 0; i < 14; i++) {
-        if (seed.std[i] > 0.4) {
-            forceIncomplete = true;
-            highUncertaintyDims.push(`D${i + 1}`);
-        }
+      if (seed.std[i] > 0.4) {
+        forceIncomplete = true;
+        highUncertaintyDims.push(`D${i + 1}`);
+      }
     }
 
     const finalIsComplete = parsed.isComplete && !forceIncomplete;
-    
+
     // If AI failed to provide a question for a high-uncertainty dimension, we force it in terminal output
     let terminalOutput = parsed.terminalOutput || "[ERROR] Failed to parse Cortex response.";
     if (forceIncomplete && (!parsed.questions || parsed.questions.length === 0)) {
-        terminalOutput += `\n\n\x1b[33m[SYS_AUDIT] 检测到逻辑断裂带: ${highUncertaintyDims.join(', ')} 信息不足。正在生成定向追问...\x1b[0m`;
+      terminalOutput += `\n\n\x1b[33m[SYS_AUDIT] 检测到逻辑断裂带: ${highUncertaintyDims.join(', ')} 信息不足。正在生成定向追问...\x1b[0m`;
     }
 
     return {
@@ -176,7 +177,7 @@ ${industryListStr}
       monetization: parsed.monetization || { model: 'SUBSCRIPTION', hardware_price: 0, monthly_fee: 45 },
       reasoning_chain: parsed.reasoning_chain || [],
       seed,
-      industryCtx,
+      industryCtx: parsed.selected_industry_id ? loadIndustryProfile(parsed.selected_industry_id) : undefined,
       terminalOutput,
       questions: (parsed.questions || []).slice(0, 1), // Enforce 1 question limit
       isComplete: finalIsComplete,
@@ -206,7 +207,7 @@ ${industryListStr}
  */
 export async function runAudit(state: SandboxState): Promise<Partial<SandboxState['assets']>> {
   const { metrics, agents } = state
-  
+
   // CRITICAL FIX: Only pass statistical summaries and a few extreme samples to the AI
   const sortedByRes = [...agents].sort((a, b) => a.resonance - b.resonance)
   const extremeHaters = sortedByRes.slice(0, 5).map(a => ({ dna: a.vector, r: a.resonance }))
@@ -220,7 +221,7 @@ export async function runAudit(state: SandboxState): Promise<Partial<SandboxStat
 
 ## Data Input (实时数据):
 - 产品向量: ${JSON.stringify(state.productVector)}
-- 指标: T+${state.epoch}, 平均共鸣=${metrics.avgResonance.toFixed(3)}, 转化率=${(metrics.conversionRate*100).toFixed(1)}%, 生存预估=${(metrics.survivalRate*100).toFixed(1)}%, 付费潜力=${metrics.earningPotential}
+- 指标: T+${state.epoch}, 平均共鸣=${metrics.avgResonance.toFixed(3)}, 转化率=${(metrics.conversionRate * 100).toFixed(1)}%, 生存预估=${(metrics.survivalRate * 100).toFixed(1)}%, 付费潜力=${metrics.earningPotential}
 - 极端组 (Haters/Fans): ${JSON.stringify(extremeHaters)} / ${JSON.stringify(extremeFans)}
 
 ## Semantic Mapping Layer (语义折叠与特征绑定):
@@ -257,7 +258,7 @@ export async function runAudit(state: SandboxState): Promise<Partial<SandboxStat
     })
 
     const sections = response.split(/#+\s+/);
-    
+
     return {
       stressTestReport: sections.find(s => s.includes('商业逻辑压力诊断')) || state.assets.stressTestReport,
       marketFeedback: sections.find(s => s.includes('用户群体精准画像')) || state.assets.marketFeedback,

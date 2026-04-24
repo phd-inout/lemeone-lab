@@ -39,7 +39,7 @@ const ParticleManifold: React.FC = () => {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   
   // Cache for stable agent coordinates and physics state
-  const agentCache = useRef<Array<{ x: number, y: number, vx: number, vy: number, tx: number, ty: number, isAware: boolean, isPaid: boolean, isChurned: boolean }>>([]);
+  const agentCache = useRef<Array<{ x: number, y: number, vx: number, vy: number, tx: number, ty: number, isAware: boolean, isPaid: boolean, isChurned: boolean, isViral?: boolean }>>([]);
   const requestRef = useRef<number>(0);
   
   // Lifecycle Constants for Visuals
@@ -182,7 +182,7 @@ const ParticleManifold: React.FC = () => {
                y: (height * getRnd()),
                vx: 0, vy: 0, 
                tx: width * 0.1, ty: height * 0.5, 
-               isAware: false, isPaid: false, isChurned: false 
+               isAware: false, isPaid: false, isChurned: false, isViral: false 
            };
        });
     }

@@ -1,27 +1,30 @@
 "use server";
 
-import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { ProjectData, SandboxState } from '@/lib/engine/types';
-import { syncUserWithPrisma } from '@/lib/auth-sync';
 
 /**
  * Creates a new Project for the user.
  */
 export async function createProjectAction(name: string, description?: string): Promise<string> {
     try {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (user) {
-            await syncUserWithPrisma(user);
-        }
+        // Automatically ensure a local user exists
+        const localUserId = 'local-user';
+        await prisma.user.upsert({
+            where: { id: localUserId },
+            update: {},
+            create: {
+                id: localUserId,
+                email: 'local@lemeone.com',
+                username: 'Local Admin',
+            }
+        });
 
         const project = await prisma.project.create({
             data: {
                 name,
                 description,
-                userId: user?.id || null,
+                userId: localUserId,
             }
         });
         return project.id;
@@ -36,17 +39,9 @@ export async function createProjectAction(name: string, description?: string): P
  */
 export async function listProjectsAction(): Promise<ProjectData[]> {
     try {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Allow fetching for anonymous users based on session/local if needed,
-        // but typically projects are tied to user ID.
-        if (!user) {
-            return [];
-        }
-
+        const localUserId = 'local-user';
         const projects = await prisma.project.findMany({
-            where: { userId: user.id },
+            where: { userId: localUserId },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -85,8 +80,8 @@ export async function loadLatestRehearsalAction(projectId: string): Promise<any 
                 earningPotential: rehearsal.cash,
                 // other metrics are not fully stored per row yet, relying on historyJson 
             },
-            productVector: rehearsal.productVector,
-            assets: rehearsal.assets,
+            productVector: rehearsal.productVector ? JSON.parse(rehearsal.productVector as string) : [],
+            assets: rehearsal.assets ? JSON.parse(rehearsal.assets as string) : {},
         };
     } catch (e) {
         console.error("[DB] Failed to load rehearsal:", e);

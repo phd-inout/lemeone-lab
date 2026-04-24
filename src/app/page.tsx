@@ -14,7 +14,7 @@ export default function LandingPage() {
         </div>
         <div className="flex gap-6 items-center text-sm font-bold tracking-widest">
           <Link href="/docs" className="text-gray-400 hover:text-white transition-colors pointer-events-auto">DOCS</Link>
-          <Link href="/login" className="text-primary hover:text-white transition-colors border border-primary px-4 py-1.5 rounded bg-primary/10 hover:bg-primary/20 pointer-events-auto">SIGN IN</Link>
+          <Link href="/sandbox" className="text-primary hover:text-white transition-colors border border-primary px-4 py-1.5 rounded bg-primary/10 hover:bg-primary/20 pointer-events-auto">ENTER LAB</Link>
         </div>
       </div>
 
@@ -37,7 +37,7 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link href="/login" className="bg-primary text-black font-bold px-8 py-3 rounded uppercase tracking-widest hover:bg-white transition-colors duration-300 shadow-[0_0_15px_rgba(0,242,255,0.4)]">
+          <Link href="/sandbox" className="bg-primary text-black font-bold px-8 py-3 rounded uppercase tracking-widest hover:bg-white transition-colors duration-300 shadow-[0_0_15px_rgba(0,242,255,0.4)]">
             Initialize Project
           </Link>
           <Link href="/docs" className="border border-gray-700 text-gray-300 font-bold px-8 py-3 rounded uppercase tracking-widest hover:bg-gray-800 transition-colors duration-300">

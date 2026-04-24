@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AssetPanel from '@/components/AssetPanel';
 import VisualizationPanel from '@/components/VisualizationPanel';
-import LogoutButton from '@/components/LogoutButton';
 
 const TerminalUI = dynamic(() => import('@/components/TerminalUI'), { ssr: false });
 
@@ -134,7 +133,6 @@ export default function Home() {
           <Link href="/docs" className="text-gray-400 hover:text-white transition-colors border border-gray-800 px-3 py-1 rounded bg-[#111] hover:bg-[#222]">
             READ DOCS
           </Link>
-          <LogoutButton />
         </div>
       </div>
 

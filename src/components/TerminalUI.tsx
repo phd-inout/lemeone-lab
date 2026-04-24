@@ -14,16 +14,17 @@ const C = {
     yellow: '\x1b[33m',
     cyan: '\x1b[36m',
     magenta: '\x1b[35m',
+    blue: '\x1b[34m',
     gray: '\x1b[90m',
     bold: '\x1b[1m',
 }
 
-const HELP_TEXT = `
+const getHelpText = (lang: 'en' | 'zh') => lang === 'zh' ? `
 ${C.cyan}${C.bold}LEMEONE_LAB v2.0 CLI${C.reset} ${C.gray}— 重力沙盒操作系统 (Gravity Sandbox OS)${C.reset}
 
 ${C.bold}项目管理${C.reset}
   ${C.green}project new "<名称>"${C.reset} - 创建一个新的项目/公司案卷
-  ${C.green}project list${C.reset}         -列出已有的历史项目
+  ${C.green}project list${C.reset}         - 列出已有的历史项目
   ${C.green}project load <ID>${C.reset}    - 切换到指定的项目
 
 ${C.bold}初始化${C.reset}
@@ -44,8 +45,41 @@ ${C.bold}诊断分析${C.reset}
   ${C.green}stat${C.reset}             - 显示完整 14D 产品向量与关键指标
   ${C.green}audit${C.reset}            - 触发深度 AI 战略审计并刷新资产
 
+${C.bold}系统设置${C.reset}
+  ${C.green}lang <en|zh>${C.reset}       - 切换语言 (Switch Language)
+
 输入 ${C.green}help${C.reset} / ${C.green}clear${C.reset} / ${C.green}exit${C.reset} 控制终端
-`
+` : `
+${C.cyan}${C.bold}LEMEONE_LAB v2.0 CLI${C.reset} ${C.gray}— Gravity Sandbox OS${C.reset}
+
+${C.bold}Project Management${C.reset}
+  ${C.green}project new "<name>"${C.reset} - Create a new project/company file
+  ${C.green}project list${C.reset}         - List existing historical projects
+  ${C.green}project load <ID>${C.reset}    - Switch to a specific project
+
+${C.bold}Initialization${C.reset}
+  ${C.green}scan "<desc>"${C.reset}   - Init business DNA scan from text/file
+  ${C.green}tier <level>${C.reset}     - Upgrade resolution (FREE, PRO, ULTRA, ENTERPRISE)
+
+${C.bold}Simulation Run${C.reset}
+  ${C.green}dev${C.reset}              - Advance to next market Epoch (10k collisions)
+  ${C.green}reset${C.reset}            - Clear current simulation state
+
+${C.bold}Vector Tuning${C.reset}
+  ${C.green}set <dim> <val>${C.reset}  - Adjust 14D dimensions (PERF, DEPTH, INTERACT, STABLE, etc.)
+  ${C.green}feature "<desc>"${C.reset} - Map natural language feature to vector space
+  ${C.green}team <size>${C.reset}      - Set resource constraints (SOLO, STARTUP, GROWTH, ENTERPRISE)
+  ${C.green}price <amount>${C.reset}   - Set custom monthly ARPU (add -y if deviance >50%)
+
+${C.bold}Diagnostics${C.reset}
+  ${C.green}stat${C.reset}             - Display full 14D product vector & key metrics
+  ${C.green}audit${C.reset}            - Trigger deep AI strategic audit and refresh assets
+
+${C.bold}System Settings${C.reset}
+  ${C.green}lang <en|zh>${C.reset}       - Switch Language (切换语言)
+
+Type ${C.green}help${C.reset} / ${C.green}clear${C.reset} / ${C.green}exit${C.reset} to control the terminal
+`;
 
 export default function TerminalUI() {
     const termRef = useRef<HTMLDivElement>(null)
@@ -57,6 +91,7 @@ export default function TerminalUI() {
     const historyIndexRef = useRef(-1)
     const currentInputRef = useRef('')
     const [isDragging, setIsDragging] = useState(false)
+    const [lang, setLang] = useState<'en' | 'zh'>('en')
 
     const { 
         initSimulation, 
@@ -130,7 +165,16 @@ export default function TerminalUI() {
 
         switch (cmd) {
             case 'help':
-                print(HELP_TEXT)
+                print(getHelpText(lang))
+                break
+            case 'lang':
+                const newLang = args[0]?.toLowerCase()
+                if (newLang === 'en' || newLang === 'zh') {
+                    setLang(newLang as 'en' | 'zh')
+                    print(newLang === 'zh' ? `${C.green}[系统] 语言已切换为中文${C.reset}` : `${C.green}[SYSTEM] Language switched to English${C.reset}`)
+                } else {
+                    print(lang === 'zh' ? `${C.red}[错误] 无效语言。用法: lang en | zh${C.reset}` : `${C.red}[ERR] Invalid language. Usage: lang en | zh${C.reset}`)
+                }
                 break
             case 'clear':
                 term.clear()
@@ -140,15 +184,15 @@ export default function TerminalUI() {
                 if (subCmd === 'new') {
                     const name = args.slice(1).join(' ')
                     if (!name) {
-                        print(`${C.red}[ERR] Missing project name. Usage: project new "Name"${C.reset}`)
+                        print(`${C.red}[ERR] ${lang === 'zh' ? '缺少项目名称。用法:' : 'Missing project name. Usage:'} project new "Name"${C.reset}`)
                     } else {
-                        print(`${C.cyan}[PROJECT] 正在创建项目: ${name}...${C.reset}`)
+                        print(`${C.cyan}[PROJECT] ${lang === 'zh' ? '正在创建项目:' : 'Creating project:'} ${name}...${C.reset}`)
                         await useLemeoneStore.getState().createProject(name)
                     }
                 } else if (subCmd === 'list') {
                     const projects = useLemeoneStore.getState().projectsList
                     if (projects.length === 0) {
-                        print(`${C.gray}没有找到任何项目。请使用 project new <name> 创建。${C.reset}`)
+                        print(`${C.gray}${lang === 'zh' ? '没有找到任何项目。请使用 project new <name> 创建。' : 'No projects found. Use "project new <name>" to create.'}${C.reset}`)
                     } else {
                         print(`\n${C.cyan}╔═ PROJECTS LIST ═════════════════════════╗${C.reset}`)
                         projects.forEach(p => {
@@ -156,31 +200,31 @@ export default function TerminalUI() {
                             print(`${C.cyan}║${C.reset} ${isCurrent ? C.green + '*' : ' '} ${p.id.substring(0,8)} | ${p.name} | ${new Date(p.createdAt).toLocaleDateString()}`)
                         })
                         print(`${C.cyan}╚═════════════════════════════════════════╝${C.reset}`)
-                        print(`${C.gray}使用 'project load <ID前缀>' 来切换项目${C.reset}`)
+                        print(`${C.gray}${lang === 'zh' ? "使用 'project load <ID前缀>' 来切换项目" : 'Use "project load <ID>" to switch projects'}${C.reset}`)
                     }
                 } else if (subCmd === 'load') {
                     const searchId = args[1]
                     if (!searchId) {
-                        print(`${C.red}[ERR] Missing project ID. Usage: project load <ID>${C.reset}`)
+                        print(`${C.red}[ERR] ${lang === 'zh' ? '缺少项目 ID。用法:' : 'Missing project ID. Usage:'} project load <ID>${C.reset}`)
                     } else {
                         const project = useLemeoneStore.getState().projectsList.find(p => p.id.startsWith(searchId))
                         if (project) {
-                            print(`${C.cyan}[PROJECT] 加载项目...${C.reset}`)
+                            print(`${C.cyan}[PROJECT] ${lang === 'zh' ? '加载项目...' : 'Loading project...'}${C.reset}`)
                             await useLemeoneStore.getState().loadProject(project.id)
                         } else {
-                            print(`${C.red}[ERR] 未找到 ID 匹配 "${searchId}" 的项目${C.reset}`)
+                            print(`${C.red}[ERR] ${lang === 'zh' ? `未找到 ID 匹配 "${searchId}" 的项目` : `No project found matching ID "${searchId}"`}${C.reset}`)
                         }
                     }
                 } else {
-                    print(`${C.red}[ERR] 未知子命令。用法: project new <name> | list | load <id>${C.reset}`)
+                    print(`${C.red}[ERR] ${lang === 'zh' ? '未知子命令。用法:' : 'Unknown sub-command. Usage:'} project new <name> | list | load <id>${C.reset}`)
                 }
                 break
             case 'scan':
                 if (args.length === 0) {
-                    print(`${C.red}[ERR] Missing input. Usage: scan "..." or drop a file.${C.reset}`)
+                    print(`${C.red}[ERR] ${lang === 'zh' ? '缺少输入。用法:' : 'Missing input. Usage:'} scan "..." or drop a file.${C.reset}`)
                 } else {
                     const inputStr = args.join(' ')
-                    print(`${C.cyan}[PARSING] 正在解析商业基因向量...${C.reset}`)
+                    print(`${C.cyan}[PARSING] ${lang === 'zh' ? '正在解析商业基因向量...' : 'Parsing business DNA vector...'}${C.reset}`)
                     await initSimulation(inputStr)
                 }
                 break
@@ -194,7 +238,7 @@ export default function TerminalUI() {
                 break
             case 'dev':
                 const agentCount = useLemeoneStore.getState().sandboxState?.agents.length || 100
-                print(`${C.green}[COLLISION] 执行下一周期 (Epoch) ${agentCount.toLocaleString()} 并行压力测试...${C.reset}`)
+                print(`${C.green}[COLLISION] ${lang === 'zh' ? `执行下一周期 (Epoch) ${agentCount.toLocaleString()} 并行压力测试...` : `Executing next Epoch (${agentCount.toLocaleString()} parallel collisions)...`}${C.reset}`)
                 await step()
                 break
             case 'set':
@@ -218,18 +262,18 @@ export default function TerminalUI() {
                 if (['SOLO', 'STARTUP', 'GROWTH', 'ENTERPRISE'].includes(size)) {
                     setTeamSize(size)
                 } else {
-                    print(`${C.red}[ERR] 无效的团队规模。可选: SOLO, STARTUP, GROWTH, ENTERPRISE${C.reset}`)
+                    print(`${C.red}[ERR] ${lang === 'zh' ? '无效的团队规模。可选:' : 'Invalid team size. Available:'} SOLO, STARTUP, GROWTH, ENTERPRISE${C.reset}`)
                 }
                 break
             case 'price':
                 const sState = useLemeoneStore.getState().sandboxState
                 if (!sState) {
-                    print(`${C.red}[ERR] Simulation not initialized.${C.reset}`)
+                    print(`${C.red}[ERR] ${lang === 'zh' ? '模拟尚未初始化' : 'Simulation not initialized.'}${C.reset}`)
                     break
                 }
                 const pValue = parseFloat(args[0])
                 if (isNaN(pValue) || pValue <= 0) {
-                    print(`${C.red}[ERR] 无效价格。用法: price <金额>${C.reset}`)
+                    print(`${C.red}[ERR] ${lang === 'zh' ? '无效价格。用法:' : 'Invalid price. Usage:'} price <金额>${C.reset}`)
                     break
                 }
                 const baseline = sState.industryBaselineARPU
@@ -237,10 +281,10 @@ export default function TerminalUI() {
                 const confirm = args.includes('-y')
                 
                 if (diffRatio > 0.5 && !confirm) {
-                    print(`${C.yellow}[WARN] 设定价格 ($${pValue}) 与行业基准 ($${baseline}) 偏差达 ${(diffRatio*100).toFixed(0)}%。\n请使用 ${C.bold}price ${pValue} -y${C.reset}${C.yellow} 强制确认。${C.reset}`)
+                    print(`${C.yellow}[WARN] ${lang === 'zh' ? `设定价格 ($${pValue}) 与行业基准 ($${baseline}) 偏差达 ${(diffRatio*100).toFixed(0)}%。\n请使用 ${C.bold}price ${pValue} -y${C.reset}${C.yellow} 强制确认。` : `Price ($${pValue}) deviates from industry baseline ($${baseline}) by ${(diffRatio*100).toFixed(0)}%.\nUse ${C.bold}price ${pValue} -y${C.reset}${C.yellow} to force confirm.`}${C.reset}`)
                 } else {
                     setARPU(pValue)
-                    print(`${C.green}[✓ OK] 成功设定客单价为: $${pValue}/月${C.reset}`)
+                    print(`${C.green}[✓ OK] ${lang === 'zh' ? `成功设定客单价为: $${pValue}/月` : `Successfully set ARPU to: $${pValue}/mo`}${C.reset}`)
                 }
                 break
             case 'stat': {
@@ -248,18 +292,19 @@ export default function TerminalUI() {
                 if (!sState) {
                     print(`${C.gray}Simulation not initialized.${C.reset}`)
                 } else {
-                    const v = (idx: number) => (sState.productVector[idx] ?? 0).toFixed(3);
+                    const vec = (Array.isArray(sState.productVector) ? sState.productVector : []) as number[];
+                    const v = (idx: number) => (vec[idx] ?? 0).toFixed(3);
                     const isBuyout = sState.monetization.model === 'ONE_TIME';
                     const isHybrid = sState.monetization.model === 'HYBRID';
                     
                     print(`\n${C.cyan}╔═ PRODUCT DNA RADAR (14D) ══════════════════════════╗${C.reset}`)
                     print(`${C.cyan}║${C.reset}  RESOLUTION: ${C.bold}${sState.tier}${C.reset} (${sState.agents.length.toLocaleString()} Agents) - EPOCH: ${C.bold}T+${sState.epoch}${C.reset}`)
                     
-                    const bar = (val: number) => '█'.repeat(Math.floor(val * 10)).padEnd(10, '░');
-                    print(`${C.cyan}║${C.reset}  [CORE] P:${v(0)} ${C.blue}${bar(sState.productVector[0])}${C.reset} D:${v(1)} ${C.blue}${bar(sState.productVector[1])}${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  [GATE] E:${v(4)} ${C.magenta}${bar(sState.productVector[4])}${C.reset} M:${v(5)} ${C.magenta}${bar(sState.productVector[5])}${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  [MKT ] U:${v(6)} ${C.green}${bar(sState.productVector[6])}${C.reset} S:${v(7)} ${C.green}${bar(sState.productVector[7])}${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  [GTM ] A:${v(13)} ${C.yellow}${bar(sState.productVector[13])}${C.reset}`)
+                    const bar = (val: number) => '█'.repeat(Math.floor((val || 0) * 10)).padEnd(10, '░');
+                    print(`${C.cyan}║${C.reset}  [CORE] P:${v(0)} ${C.blue}${bar(vec[0])}${C.reset} D:${v(1)} ${C.blue}${bar(vec[1])}${C.reset}`)
+                    print(`${C.cyan}║${C.reset}  [GATE] E:${v(4)} ${C.magenta}${bar(vec[4])}${C.reset} M:${v(5)} ${C.magenta}${bar(vec[5])}${C.reset}`)
+                    print(`${C.cyan}║${C.reset}  [MKT ] U:${v(6)} ${C.green}${bar(vec[6])}${C.reset} S:${v(7)} ${C.green}${bar(vec[7])}${C.reset}`)
+                    print(`${C.cyan}║${C.reset}  [GTM ] A:${v(13)} ${C.yellow}${bar(vec[13])}${C.reset}`)
                     
                     print(`${C.cyan}╠═ REVENUE PERFORMANCE ══════════════════════════════╣${C.reset}`)
                     const mrrFormatted = sState.metrics.mrr.toLocaleString();
@@ -282,17 +327,17 @@ export default function TerminalUI() {
             case 'reset':
                 reset()
                 term.clear()
-                print(`${C.yellow}Simulation reset. Memory wiped.${C.reset}`)
+                print(`${C.yellow}${lang === 'zh' ? '模拟已重置。内存已清空。' : 'Simulation reset. Memory wiped.'}${C.reset}`)
                 break
             case 'exit':
-                print(`${C.gray}Connection closed.${C.reset}`)
+                print(`${C.gray}${lang === 'zh' ? '连接已关闭。' : 'Connection closed.'}${C.reset}`)
                 break
             default:
-                print(`${C.red}Unknown command: ${cmd}${C.reset}`)
+                print(`${C.red}${lang === 'zh' ? '未知命令:' : 'Unknown command:'} ${cmd}${C.reset}`)
         }
 
         showPrompt()
-    }, [initSimulation, step, updateVector, addFeature, setTeamSize, audit, reset, upgradeTier, setARPU, showPrompt, print])
+    }, [initSimulation, step, updateVector, addFeature, setTeamSize, audit, reset, upgradeTier, setARPU, showPrompt, print, lang])
 
     const handleFileDrop = useCallback(async (e: React.DragEvent) => {
         e.preventDefault()
@@ -302,19 +347,19 @@ export default function TerminalUI() {
 
         const validExts = ['.md', '.txt', '.json']
         if (!validExts.some(ext => file.name.endsWith(ext))) {
-            print(`${C.red}[ERR] Unsupported file. Please use .md, .txt or .json${C.reset}`)
+            print(`${C.red}[ERR] ${lang === 'zh' ? '不支持的文件格式。请使用 .md, .txt 或 .json' : 'Unsupported file. Please use .md, .txt or .json'}${C.reset}`)
             showPrompt()
             return
         }
 
-        print(`${C.cyan}[FEEDING] 成功接收文件: ${file.name}${C.reset}`)
+        print(`${C.cyan}[FEEDING] ${lang === 'zh' ? `成功接收文件: ${file.name}` : `Received file: ${file.name}`}${C.reset}`)
         const text = await file.text()
-        print(`${C.cyan}[PARSING] 正在执行深度文档扫描 (Size: ${text.length} chars)...${C.reset}`)
+        print(`${C.cyan}[PARSING] ${lang === 'zh' ? `正在执行深度文档扫描 (Size: ${text.length} chars)...` : `Performing deep document scan (Size: ${text.length} chars)...`}${C.reset}`)
         
         // Prevent recursive quotes in command
         const cleanText = text.replace(/"/g, "'")
         await handleCommand(`scan "${cleanText}"`)
-    }, [handleCommand, print, showPrompt])
+    }, [handleCommand, print, showPrompt, lang])
 
     // Initialize Terminal
     useEffect(() => {
@@ -346,11 +391,11 @@ export default function TerminalUI() {
         term.writeln(`${C.cyan}${C.bold}  ██║     ██╔══╝  ██║╚██╔╝██║██╔══╝  ██║   ██║██║╚██╗██║██╔══╝${C.reset}`)
         term.writeln(`${C.cyan}${C.bold}  ███████╗███████╗██║ ╚═╝ ██║███████╗╚██████╔╝██║ ╚████║███████╗${C.reset}`)
         term.writeln(`${C.cyan}${C.bold}  ╚══════╝╚══════╝╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝${C.reset}`)
-        term.writeln(`${C.gray}  v2.0 Gravity Sandbox — 14D 商业模拟引擎${C.reset}`)
+        term.writeln(`${C.gray}  v2.0 Gravity Sandbox — 14D Business Simulation Engine${C.reset}`)
         term.writeln(`${C.gray}  ─────────────────────────────────────────────────${C.reset}`)
-        term.writeln(`${C.yellow}  提示：描述越模糊，σ (不确定性) 越高，模拟中的现金流崩塌风险越大。${C.reset}`)
-        term.writeln(`${C.gray}  如果你是首次使用：输入 ${C.green}project new "你的项目"${C.gray} 创建档案 ${C.reset}`)
-        term.writeln(`${C.gray}  开始扫描：输入 ${C.green}scan "你的想法"${C.gray} | ${C.green}help${C.gray} 查看全部命令${C.reset}\r\n`)
+        term.writeln(`${C.yellow}  TIP: The vaguer the description, the higher the σ (uncertainty), and the greater the risk of cash flow collapse.${C.reset}`)
+        term.writeln(`${C.gray}  First time here? Type ${C.green}project new "Your Project"${C.gray} to create a profile ${C.reset}`)
+        term.writeln(`${C.gray}  Start scanning: Type ${C.green}scan "Your idea"${C.gray} | Type ${C.green}lang zh${C.gray} to switch to Chinese${C.reset}\r\n`)
 
         // Native terminal input has been migrated to the external HTML input bar below for better UX
 
@@ -422,13 +467,13 @@ export default function TerminalUI() {
                                             onClick={() => inputRef.current?.focus()}
                                             className="px-3 py-1.5 bg-gray-800/30 border border-gray-700/50 border-dashed rounded text-xs text-gray-500 hover:text-gray-400 transition-colors"
                                         >
-                                            自定义输入...
+                                            {lang === 'zh' ? '自定义输入...' : 'Custom input...'}
                                         </button>
                                     </div>
                                 )}
                                 {q.type === 'yesno' && (
                                     <div className="flex gap-2 mt-1">
-                                        {['是 (Yes)', '否 (No)'].map((label) => (
+                                        {(lang === 'zh' ? ['是 (Yes)', '否 (No)'] : ['Yes', 'No']).map((label) => (
                                             <button
                                                 key={label}
                                                 onClick={() => {
@@ -494,7 +539,15 @@ export default function TerminalUI() {
                         }
                     }}
                 />
-                <div className="text-[10px] text-gray-600 tracking-wider hidden sm:block">~/lemeone-lab (main*)</div>
+                <div className="flex items-center gap-4 text-[10px] text-gray-600 tracking-wider hidden sm:flex">
+                    <button 
+                        onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} 
+                        className="hover:text-cyan-400 transition-colors font-bold uppercase"
+                    >
+                        [{lang === 'en' ? 'EN' : 'ZH'}]
+                    </button>
+                    <span>~/lemeone-lab (main*)</span>
+                </div>
             </div>
         </div>
     )

@@ -241,7 +241,11 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const proposal = await generateProposal(seed, seedText)
                 const initialPopulation = generatePopulation(seed, limits.maxAgents)
                 const agents = await import('./engine/simulator').then(m => m.runCollisionAsync(seed.mean, 0, initialPopulation, 0))
-                const initialMetrics = calculateMetrics(agents, seed.mean, 0, 'STARTUP', 0, industryCtx?.baselineARPU || 45)
+                const initialMetrics = calculateMetrics(agents, seed.mean, 0, 'STARTUP', 0, {
+                    model: 'SUBSCRIPTION',
+                    hardwarePrice: 0,
+                    monthlyFee: industryCtx?.baselineARPU || 45
+                })
                 
                 const initialState: SandboxState = {
                     id: uuidv4(),
@@ -255,6 +259,11 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     industryId: industryCtx?.id || null,
                     industryName: industryCtx?.name || null,
                     industryBaselineARPU: industryCtx?.baselineARPU || 45,
+                    monetization: {
+                        model: 'SUBSCRIPTION',
+                        hardwarePrice: 0,
+                        monthlyFee: industryCtx?.baselineARPU || 45
+                    },
                     productVector: seed.mean,
                     agents,
                     metrics: initialMetrics,
@@ -320,7 +329,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const initialPopulation = generatePopulation(seed, limits.maxAgents)
                 const agents = await import('./engine/simulator').then(m => m.runCollisionAsync(seed.mean, 0, initialPopulation, 0))
                 
-                const monetization = seed.monetization || { model: 'SUBSCRIPTION', hardwarePrice: 0, monthly_fee: industryCtx?.baselineARPU || 45 };
+                const monetization = (seed as any).monetization || { model: 'SUBSCRIPTION', hardwarePrice: 0, monthly_fee: industryCtx?.baselineARPU || 45 };
                 
                 const fetchedPricing = get().fetchedPricing;
                 const finalHardwarePrice = fetchedPricing?.hardwarePrice ?? (monetization as any).hardware_price ?? 0;
@@ -386,7 +395,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 if (!s) return
 
                 const arpu = s.userARPU
-                const nextState = await stepSimulation(s, arpu)
+                const nextState = await stepSimulation(s)
                 
                 const sRate = nextState.metrics.survivalRate
                 const nextJournal = s.assets.journal + `\n## [EPOCH T+${nextState.epoch}]\n- **活跃用户**: ${nextState.metrics.activePaidUserCount.toLocaleString()}\n- **付费用户**: ${nextState.metrics.earningPotential.toLocaleString()}\n- **MRR**: $${nextState.metrics.mrr.toLocaleString()}\n- **生存几率**: ${(sRate * 100).toFixed(1)}%\n- **技术债**: ${nextState.techDebt.toFixed(1)}%\n`

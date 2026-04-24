@@ -23,6 +23,7 @@ async function testSimulationLeak() {
         industryId: "ind_003_iot",
         industryName: "IoT",
         industryBaselineARPU: 45,
+        monetization: { model: 'SUBSCRIPTION', hardwarePrice: 0, monthlyFee: 45 },
         productVector: baseVector,
         agents: generatePopulation({
             mean: baseVector,

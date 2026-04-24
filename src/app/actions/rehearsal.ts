@@ -2,29 +2,21 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import { SandboxState } from '@/lib/engine/types'
-import { createClient } from '@/utils/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { syncUserWithPrisma } from '@/lib/auth-sync'
 
 /**
  * Creates a brand new Rehearsal record for the 2.0 Gravity Sandbox.
  */
 export async function createRehearsal(sessionId: string, projectId: string, state: SandboxState): Promise<string> {
     try {
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (user) {
-            await syncUserWithPrisma(user);
-        }
-
+        const localUserId = 'local-user';
         const rehearsal = await prisma.rehearsal.create({
             data: {
                 sessionId,
-                userId: user?.id || null,
+                userId: localUserId,
                 projectId,
-                productVector: state.productVector as any,
-                assets: state.assets as any,
+                productVector: JSON.stringify(state.productVector),
+                assets: JSON.stringify(state.assets),
                 cash: state.metrics.earningPotential,
                 techDebt: state.techDebt,
                 weekNumber: state.epoch,
@@ -49,8 +41,8 @@ export async function syncRehearsal(rehearsalId: string, state: SandboxState): P
         await prisma.rehearsal.update({
             where: { id: rehearsalId },
             data: {
-                productVector: state.productVector as any,
-                assets: state.assets as any,
+                productVector: JSON.stringify(state.productVector),
+                assets: JSON.stringify(state.assets),
                 cash: state.metrics.earningPotential,
                 techDebt: state.techDebt,
                 weekNumber: state.epoch,

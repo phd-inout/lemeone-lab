@@ -1,7 +1,10 @@
 {
-  "name": "tempapp",
+  "name": "lemeone-lab",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "lemeone-lab": "./bin/lemeone.js"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,12 +12,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@lemeone/drta-engine": "file:./packages/drta-engine",
     "@ai-sdk/google": "^3.0.43",
-    "@prisma/adapter-pg": "^7.4.2",
+    "@lemeone/drta-engine": "file:./packages/drta-engine",
     "@prisma/client": "^7.4.2",
-    "@supabase/ssr": "^0.9.0",
-    "@supabase/supabase-js": "^2.99.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-webgl": "^0.19.0",
     "@xterm/xterm": "^6.0.0",
@@ -34,12 +34,10 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "pg": "^8.20.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
