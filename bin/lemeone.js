@@ -8,11 +8,11 @@ console.log('🚀 Starting Lemeone-lab 2.0 Local Engine...');
 
 const appDir = path.resolve(__dirname, '..');
 
-// 1. Check GEMINI_API_KEY
-if (!process.env.GEMINI_API_KEY) {
-  console.log('\n⚠️  WARNING: GEMINI_API_KEY is not set in your environment.');
-  console.log('   The simulation requires Gemini to generate events.');
-  console.log('   Please export GEMINI_API_KEY="your-key" and run again, or set it in .env.local.\n');
+// 1. Check GOOGLE_GENERATIVE_AI_API_KEY
+if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  console.log('\n⚠️  WARNING: GOOGLE_GENERATIVE_AI_API_KEY is not set in your environment.');
+  console.log('   The simulation requires Google Gemini Flash to generate events.');
+  console.log('   Please export GOOGLE_GENERATIVE_AI_API_KEY="your-key" and run again.\n');
 }
 
 // 2. Initialize Database

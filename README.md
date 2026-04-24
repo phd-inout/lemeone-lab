@@ -29,22 +29,37 @@ Optimized for professional product managers and strategic researchers.
 ## 🏁 Getting Started
 
 ### 1. Prerequisites
-- **Node.js** (v20 or higher)
-- **Gemini API Key**: Get it from [Google AI Studio](https://aistudio.google.com/).
+- **Node.js**: v20 or higher.
+- **Gemini API Key**: Essential for Cortex AI features. [Get it for free here](https://aistudio.google.com/).
 
-### 2. Quick Start (via npx)
-Simply run:
-```bash
-export GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
-npx lemeone-lab
-```
+### 2. Local Setup (Recommended)
+Clone the repository and initialize the sandbox environment locally:
 
-### 3. Local Development
 ```bash
+# 1. Clone & Enter
 git clone https://github.com/phd-inout/lemeone-lab.git
 cd lemeone-lab
+
+# 2. Install dependencies
 npm install
+
+# 3. Set Environment Variable
+export GOOGLE_GENERATIVE_AI_API_KEY="your_api_key_here"
+# OR: create a .env file in the root:
+# GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here
+
+# 4. Initialize local database
+npx prisma db push
+
+# 5. Launch Simulation
 npm run dev
+```
+
+### 3. Quick Run (via npx)
+If you just want to take a quick peek (requires the package to be published to npm):
+```bash
+export GOOGLE_GENERATIVE_AI_API_KEY="your_key"
+npx lemeone-lab
 ```
 
 ---
@@ -66,13 +81,17 @@ Lemeone-Lab's DRTA engine has been cross-validated against historical market dat
 
 ## 📜 Terminal Command Reference
 
-- `project new "<name>"`: Initialize a new project dossier.
-- `scan "<description>"`: Map requirements to the 14D vector space via Cortex AI.
-- `dev [month|num]`: Advance the simulation (Default: 1 month / 4 Epochs).
-- `set <DIM> <value>`: Manually override DNA dimensions (e.g., `set PERF 0.9`).
-- `feature "<desc>"`: Dynamically inject a new feature and calculate its TechDebt impact.
-- `stat`: Display detailed 14D DNA Radar and performance metrics.
-- `audit`: Generate a comprehensive AI strategic diagnosis.
+| Command | Action | Impact |
+| :--- | :--- | :--- |
+| `project new "Name"` | Create a new case file | Locks industry baseline |
+| `scan "PRD text"` | Cortex 14D DNA Mapping | Defines the product vector |
+| `dev` | **Advance 1 Month** (4 Epochs) | Massive vector collision step |
+| `dev [num]` | Advance specific weeks | Granular simulation control |
+| `stat` | View 14D Radar & Metrics | Real-time state diagnosis |
+| `feature "desc"` | Natural Language Injection | Adds feature + dynamic TechDebt |
+| `price [val]` | Set ARPU / Hardware price | Influences MRR & conversion |
+| `audit` | Generate Strategic Report | AI Deep-dive analysis |
+| `reset` | System wipe | Clears all simulation memory |
 
 ## ⚖️ License
 
