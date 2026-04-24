@@ -5,8 +5,13 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { useLemeoneStore } from '@/lib/store';
 import { DIM, TeamSize } from '@/lib/engine/types';
+import { 
+    Terminal as TerminalIcon, 
+    Globe, 
+    Activity
+} from 'lucide-react';
 
-// ANSI Colors
+// ANSI Colors for logic printing (internal)
 const C = {
     reset: '\x1b[0m',
     red: '\x1b[31m',
@@ -32,21 +37,18 @@ ${C.bold}初始化${C.reset}
   ${C.green}tier <等级>${C.reset}     - 升级分辨率 (FREE, PRO, ULTRA, ENTERPRISE)
 
 ${C.bold}模拟运行${C.reset}
-  ${C.green}dev${C.reset}              - 推进至下一市场周期 (Epoch)，触发万次碰撞
+  ${C.green}dev [month|num]${C.reset}    - 推进市场周期 (默认 1个月/4 Epochs)
   ${C.green}reset${C.reset}            - 清除当前模拟状态
 
 ${C.bold}向量调参${C.reset}
-  ${C.green}set <dim> <val>${C.reset}  - 调整 14D 维度 (PERF, DEPTH, INTERACT, STABLE, ENTRY, MONETIZE...)
+  ${C.green}set <dim> <val>${C.reset}  - 调整 14D 维度 (PERF, DEPTH, INTERACT, STABLE, ENTRY...)
   ${C.green}feature "<描述>"${C.reset} - 将自然语言功能映射到向量空间
   ${C.green}team <规模>${C.reset}      - 设置资源约束 (SOLO, STARTUP, GROWTH, ENTERPRISE)
-  ${C.green}price <金额>${C.reset}     - 设定自定义月客单价 (如果偏离行业基准 >50% 需要加 -y 确认)
+  ${C.green}price <金额>${C.reset}     - 设定客单价 (-y 强制确认)
 
 ${C.bold}诊断分析${C.reset}
-  ${C.green}stat${C.reset}             - 显示完整 14D 产品向量与关键指标
-  ${C.green}audit${C.reset}            - 触发深度 AI 战略审计并刷新资产
-
-${C.bold}系统设置${C.reset}
-  ${C.green}lang <en|zh>${C.reset}       - 切换语言 (Switch Language)
+  ${C.green}stat${C.reset}             - 显示 14D 向量详情
+  ${C.green}audit${C.reset}            - 触发 AI 战略审计
 
 输入 ${C.green}help${C.reset} / ${C.green}clear${C.reset} / ${C.green}exit${C.reset} 控制终端
 ` : `
@@ -62,23 +64,20 @@ ${C.bold}Initialization${C.reset}
   ${C.green}tier <level>${C.reset}     - Upgrade resolution (FREE, PRO, ULTRA, ENTERPRISE)
 
 ${C.bold}Simulation Run${C.reset}
-  ${C.green}dev${C.reset}              - Advance to next market Epoch (10k collisions)
+  ${C.green}dev [month|num]${C.reset}    - Advance market cycle (default 1 month/4 Epochs)
   ${C.green}reset${C.reset}            - Clear current simulation state
 
 ${C.bold}Vector Tuning${C.reset}
-  ${C.green}set <dim> <val>${C.reset}  - Adjust 14D dimensions (PERF, DEPTH, INTERACT, STABLE, etc.)
-  ${C.green}feature "<desc>"${C.reset} - Map natural language feature to vector space
-  ${C.green}team <size>${C.reset}      - Set resource constraints (SOLO, STARTUP, GROWTH, ENTERPRISE)
-  ${C.green}price <amount>${C.reset}   - Set custom monthly ARPU (add -y if deviance >50%)
+  ${C.green}set <dim> <val>${C.reset}  - Adjust 14D dimensions
+  ${C.green}feature "<desc>"${C.reset} - Map natural language feature
+  ${C.green}team <size>${C.reset}      - Set resource constraints
+  ${C.green}price <amount>${C.reset}   - Set ARPU (-y to confirm)
 
 ${C.bold}Diagnostics${C.reset}
-  ${C.green}stat${C.reset}             - Display full 14D product vector & key metrics
-  ${C.green}audit${C.reset}            - Trigger deep AI strategic audit and refresh assets
+  ${C.green}stat${C.reset}             - Display full 14D product vector
+  ${C.green}audit${C.reset}            - Trigger deep AI strategic audit
 
-${C.bold}System Settings${C.reset}
-  ${C.green}lang <en|zh>${C.reset}       - Switch Language (切换语言)
-
-Type ${C.green}help${C.reset} / ${C.green}clear${C.reset} / ${C.green}exit${C.reset} to control the terminal
+Type ${C.green}help${C.reset} / ${C.green}clear${C.reset} / ${C.green}exit${C.reset} to control terminal
 `;
 
 export default function TerminalUI() {
@@ -86,11 +85,8 @@ export default function TerminalUI() {
     const inputRef = useRef<HTMLInputElement>(null)
     const xtermRef = useRef<Terminal | null>(null)
     const fitAddonRef = useRef<FitAddon | null>(null)
-    const inputBufRef = useRef('')
     const historyRef = useRef<string[]>([])
     const historyIndexRef = useRef(-1)
-    const currentInputRef = useRef('')
-    const [isDragging, setIsDragging] = useState(false)
     const [lang, setLang] = useState<'en' | 'zh'>('en')
 
     const { 
@@ -102,10 +98,6 @@ export default function TerminalUI() {
         audit, 
         reset, 
         upgradeTier,
-        activeProjectId,
-        projectsList,
-        createProject,
-        loadProject,
         setARPU,
         terminalLines,
         isInterviewing,
@@ -171,9 +163,6 @@ export default function TerminalUI() {
                 const newLang = args[0]?.toLowerCase()
                 if (newLang === 'en' || newLang === 'zh') {
                     setLang(newLang as 'en' | 'zh')
-                    print(newLang === 'zh' ? `${C.green}[系统] 语言已切换为中文${C.reset}` : `${C.green}[SYSTEM] Language switched to English${C.reset}`)
-                } else {
-                    print(lang === 'zh' ? `${C.red}[错误] 无效语言。用法: lang en | zh${C.reset}` : `${C.red}[ERR] Invalid language. Usage: lang en | zh${C.reset}`)
                 }
                 break
             case 'clear':
@@ -183,372 +172,174 @@ export default function TerminalUI() {
                 const subCmd = args[0]?.toLowerCase()
                 if (subCmd === 'new') {
                     const name = args.slice(1).join(' ')
-                    if (!name) {
-                        print(`${C.red}[ERR] ${lang === 'zh' ? '缺少项目名称。用法:' : 'Missing project name. Usage:'} project new "Name"${C.reset}`)
-                    } else {
-                        print(`${C.cyan}[PROJECT] ${lang === 'zh' ? '正在创建项目:' : 'Creating project:'} ${name}...${C.reset}`)
-                        await useLemeoneStore.getState().createProject(name)
-                    }
+                    if (name) await useLemeoneStore.getState().createProject(name)
                 } else if (subCmd === 'list') {
                     const projects = useLemeoneStore.getState().projectsList
-                    if (projects.length === 0) {
-                        print(`${C.gray}${lang === 'zh' ? '没有找到任何项目。请使用 project new <name> 创建。' : 'No projects found. Use "project new <name>" to create.'}${C.reset}`)
-                    } else {
-                        print(`\n${C.cyan}╔═ PROJECTS LIST ═════════════════════════╗${C.reset}`)
-                        projects.forEach(p => {
-                            const isCurrent = p.id === useLemeoneStore.getState().activeProjectId
-                            print(`${C.cyan}║${C.reset} ${isCurrent ? C.green + '*' : ' '} ${p.id.substring(0,8)} | ${p.name} | ${new Date(p.createdAt).toLocaleDateString()}`)
-                        })
-                        print(`${C.cyan}╚═════════════════════════════════════════╝${C.reset}`)
-                        print(`${C.gray}${lang === 'zh' ? "使用 'project load <ID前缀>' 来切换项目" : 'Use "project load <ID>" to switch projects'}${C.reset}`)
-                    }
+                    print(`\n${C.cyan}╔═ PROJECTS LIST ═════════════════════════╗${C.reset}`)
+                    projects.forEach(p => {
+                        const isCurrent = p.id === useLemeoneStore.getState().activeProjectId
+                        print(`${C.cyan}║${C.reset} ${isCurrent ? C.green + '*' : ' '} ${p.id.substring(0,8)} | ${p.name}`)
+                    })
+                    print(`${C.cyan}╚═════════════════════════════════════════╝${C.reset}`)
                 } else if (subCmd === 'load') {
                     const searchId = args[1]
-                    if (!searchId) {
-                        print(`${C.red}[ERR] ${lang === 'zh' ? '缺少项目 ID。用法:' : 'Missing project ID. Usage:'} project load <ID>${C.reset}`)
-                    } else {
-                        const project = useLemeoneStore.getState().projectsList.find(p => p.id.startsWith(searchId))
-                        if (project) {
-                            print(`${C.cyan}[PROJECT] ${lang === 'zh' ? '加载项目...' : 'Loading project...'}${C.reset}`)
-                            await useLemeoneStore.getState().loadProject(project.id)
-                        } else {
-                            print(`${C.red}[ERR] ${lang === 'zh' ? `未找到 ID 匹配 "${searchId}" 的项目` : `No project found matching ID "${searchId}"`}${C.reset}`)
-                        }
-                    }
-                } else {
-                    print(`${C.red}[ERR] ${lang === 'zh' ? '未知子命令。用法:' : 'Unknown sub-command. Usage:'} project new <name> | list | load <id>${C.reset}`)
+                    const project = useLemeoneStore.getState().projectsList.find(p => p.id.startsWith(searchId))
+                    if (project) await useLemeoneStore.getState().loadProject(project.id)
                 }
                 break
             case 'scan':
-                if (args.length === 0) {
-                    print(`${C.red}[ERR] ${lang === 'zh' ? '缺少输入。用法:' : 'Missing input. Usage:'} scan "..." or drop a file.${C.reset}`)
-                } else {
-                    const inputStr = args.join(' ')
-                    print(`${C.cyan}[PARSING] ${lang === 'zh' ? '正在解析商业基因向量...' : 'Parsing business DNA vector...'}${C.reset}`)
-                    await initSimulation(inputStr)
-                }
+                if (args.length > 0) await initSimulation(args.join(' '))
                 break
             case 'tier':
                 const newTier = args[0]?.toUpperCase() as any
-                if (['FREE', 'PRO', 'ULTRA', 'ENTERPRISE'].includes(newTier)) {
-                    upgradeTier(newTier)
-                } else {
-                    print(`${C.red}[ERR] Invalid tier. Available: FREE, PRO, ULTRA, ENTERPRISE${C.reset}`)
-                }
+                if (['FREE', 'PRO', 'ULTRA', 'ENTERPRISE'].includes(newTier)) upgradeTier(newTier)
                 break
-            case 'dev':
-                const agentCount = useLemeoneStore.getState().sandboxState?.agents.length || 100
-                print(`${C.green}[COLLISION] ${lang === 'zh' ? `执行下一周期 (Epoch) ${agentCount.toLocaleString()} 并行压力测试...` : `Executing next Epoch (${agentCount.toLocaleString()} parallel collisions)...`}${C.reset}`)
-                await step()
-                break
+            case 'dev': {
+                const isMonth = args[0]?.toLowerCase() === 'month' || args.length === 0;
+                const steps = isMonth ? 4 : (parseInt(args[0]) || 1);
+                print(`${C.green}[COLLISION] Advancing ${isMonth ? '1 month' : steps + ' epochs'}...${C.reset}`);
+                for (let i = 0; i < steps; i++) await step();
+                break;
+            }
             case 'set':
                 const dim = args[0]?.toUpperCase() as keyof typeof DIM
                 const val = parseFloat(args[1])
-                if (DIM[dim] !== undefined && !isNaN(val)) {
-                    updateVector(dim, val)
-                } else {
-                    print(`${C.red}[ERR] Invalid dimension. Available: PERF, DEPTH, INTERACT, STABLE...${C.reset}`)
-                }
+                if (DIM[dim] !== undefined && !isNaN(val)) updateVector(dim, val)
                 break
             case 'feature':
-                if (!args[0]) {
-                    print(`${C.red}[ERR] Missing feature description.${C.reset}`)
-                } else {
-                    await addFeature(args[0])
-                }
+                if (args[0]) await addFeature(args[0])
                 break
             case 'team':
                 const size = args[0]?.toUpperCase() as TeamSize
-                if (['SOLO', 'STARTUP', 'GROWTH', 'ENTERPRISE'].includes(size)) {
-                    setTeamSize(size)
-                } else {
-                    print(`${C.red}[ERR] ${lang === 'zh' ? '无效的团队规模。可选:' : 'Invalid team size. Available:'} SOLO, STARTUP, GROWTH, ENTERPRISE${C.reset}`)
-                }
+                if (['SOLO', 'STARTUP', 'GROWTH', 'ENTERPRISE'].includes(size)) setTeamSize(size)
                 break
             case 'price':
-                const sState = useLemeoneStore.getState().sandboxState
-                if (!sState) {
-                    print(`${C.red}[ERR] ${lang === 'zh' ? '模拟尚未初始化' : 'Simulation not initialized.'}${C.reset}`)
-                    break
-                }
                 const pValue = parseFloat(args[0])
-                if (isNaN(pValue) || pValue <= 0) {
-                    print(`${C.red}[ERR] ${lang === 'zh' ? '无效价格。用法:' : 'Invalid price. Usage:'} price <金额>${C.reset}`)
-                    break
-                }
-                const baseline = sState.industryBaselineARPU
-                const diffRatio = Math.abs(pValue - baseline) / baseline
-                const confirm = args.includes('-y')
-                
-                if (diffRatio > 0.5 && !confirm) {
-                    print(`${C.yellow}[WARN] ${lang === 'zh' ? `设定价格 ($${pValue}) 与行业基准 ($${baseline}) 偏差达 ${(diffRatio*100).toFixed(0)}%。\n请使用 ${C.bold}price ${pValue} -y${C.reset}${C.yellow} 强制确认。` : `Price ($${pValue}) deviates from industry baseline ($${baseline}) by ${(diffRatio*100).toFixed(0)}%.\nUse ${C.bold}price ${pValue} -y${C.reset}${C.yellow} to force confirm.`}${C.reset}`)
-                } else {
+                if (!isNaN(pValue)) {
                     setARPU(pValue)
-                    print(`${C.green}[✓ OK] ${lang === 'zh' ? `成功设定客单价为: $${pValue}/月` : `Successfully set ARPU to: $${pValue}/mo`}${C.reset}`)
+                    print(`${C.green}[✓ OK] ARPU set to $${pValue}${C.reset}`)
                 }
                 break
             case 'stat': {
-                const sState = useLemeoneStore.getState().sandboxState
-                if (!sState) {
-                    print(`${C.gray}Simulation not initialized.${C.reset}`)
-                } else {
-                    const vec = (Array.isArray(sState.productVector) ? sState.productVector : []) as number[];
-                    const v = (idx: number) => (vec[idx] ?? 0).toFixed(3);
-                    const isBuyout = sState.monetization.model === 'ONE_TIME';
-                    const isHybrid = sState.monetization.model === 'HYBRID';
-                    
-                    print(`\n${C.cyan}╔═ PRODUCT DNA RADAR (14D) ══════════════════════════╗${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  RESOLUTION: ${C.bold}${sState.tier}${C.reset} (${sState.agents.length.toLocaleString()} Agents) - EPOCH: ${C.bold}T+${sState.epoch}${C.reset}`)
-                    
-                    const bar = (val: number) => '█'.repeat(Math.floor((val || 0) * 10)).padEnd(10, '░');
-                    print(`${C.cyan}║${C.reset}  [CORE] P:${v(0)} ${C.blue}${bar(vec[0])}${C.reset} D:${v(1)} ${C.blue}${bar(vec[1])}${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  [GATE] E:${v(4)} ${C.magenta}${bar(vec[4])}${C.reset} M:${v(5)} ${C.magenta}${bar(vec[5])}${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  [MKT ] U:${v(6)} ${C.green}${bar(vec[6])}${C.reset} S:${v(7)} ${C.green}${bar(vec[7])}${C.reset}`)
-                    print(`${C.cyan}║${C.reset}  [GTM ] A:${v(13)} ${C.yellow}${bar(vec[13])}${C.reset}`)
-                    
-                    print(`${C.cyan}╠═ REVENUE PERFORMANCE ══════════════════════════════╣${C.reset}`)
-                    const mrrFormatted = sState.metrics.mrr.toLocaleString();
-                    if (isBuyout) {
-                        print(`${C.cyan}║${C.reset}  MODE: ${C.bold}[📦 ONE-TIME BUYOUT]${C.reset}  UNIT_PRICE: $${sState.monetization.hardwarePrice}`)
-                        print(`${C.cyan}║${C.reset}  REVENUE (THIS EPOCH): ${C.green}${C.bold}$${mrrFormatted}${C.reset}`)
-                    } else if (isHybrid) {
-                        print(`${C.cyan}║${C.reset}  MODE: ${C.bold}[🧬 HYBRID MODEL]${C.reset} HW: $${sState.monetization.hardwarePrice} | SUB: $${sState.monetization.monthlyFee}`)
-                        print(`${C.cyan}║${C.reset}  TOTAL REVENUE: ${C.green}${C.bold}$${mrrFormatted}${C.reset}`)
-                    } else {
-                        print(`${C.cyan}║${C.reset}  MODE: [🔁 SUBSCRIPTION]  ARPU: $${sState.monetization.monthlyFee}`)
-                        print(`${C.cyan}║${C.reset}  MRR: ${C.green}${C.bold}$${mrrFormatted}${C.reset}`)
-                    }
-
-                    print(`${C.cyan}╚════════════════════════════════════════════════════╝${C.reset}`)
-                    print(`${C.yellow}TEAM: ${sState.teamSize}  SURVIVAL: ${(sState.metrics.survivalRate*100).toFixed(1)}%  PAID_USERS: ${sState.metrics.earningPotential}${C.reset}`)
-                }
+                const s = useLemeoneStore.getState().sandboxState
+                if (!s) break
+                print(`\n${C.cyan}╔═ PRODUCT DNA (T+${s.epoch}) ═══════════════╗${C.reset}`)
+                s.productVector.forEach((v, i) => {
+                    const bar = '█'.repeat(Math.floor(v * 10)).padEnd(10, '░')
+                    print(`${C.cyan}║${C.reset} D${i.toString().padStart(2,'0')}: ${v.toFixed(3)} ${C.blue}${bar}${C.reset}`)
+                })
+                print(`${C.cyan}╚══════════════════════════════════════════╝${C.reset}`)
                 break
             }
+            case 'audit':
+                await audit()
+                break
             case 'reset':
                 reset()
                 term.clear()
-                print(`${C.yellow}${lang === 'zh' ? '模拟已重置。内存已清空。' : 'Simulation reset. Memory wiped.'}${C.reset}`)
                 break
             case 'exit':
-                print(`${C.gray}${lang === 'zh' ? '连接已关闭。' : 'Connection closed.'}${C.reset}`)
+                print(`${C.gray}Connection closed.${C.reset}`)
                 break
             default:
-                print(`${C.red}${lang === 'zh' ? '未知命令:' : 'Unknown command:'} ${cmd}${C.reset}`)
+                print(`${C.red}Unknown command: ${cmd}${C.reset}`)
         }
-
         showPrompt()
     }, [initSimulation, step, updateVector, addFeature, setTeamSize, audit, reset, upgradeTier, setARPU, showPrompt, print, lang])
 
-    const handleFileDrop = useCallback(async (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragging(false)
-        const file = e.dataTransfer.files[0]
-        if (!file) return
-
-        const validExts = ['.md', '.txt', '.json']
-        if (!validExts.some(ext => file.name.endsWith(ext))) {
-            print(`${C.red}[ERR] ${lang === 'zh' ? '不支持的文件格式。请使用 .md, .txt 或 .json' : 'Unsupported file. Please use .md, .txt or .json'}${C.reset}`)
-            showPrompt()
-            return
-        }
-
-        print(`${C.cyan}[FEEDING] ${lang === 'zh' ? `成功接收文件: ${file.name}` : `Received file: ${file.name}`}${C.reset}`)
-        const text = await file.text()
-        print(`${C.cyan}[PARSING] ${lang === 'zh' ? `正在执行深度文档扫描 (Size: ${text.length} chars)...` : `Performing deep document scan (Size: ${text.length} chars)...`}${C.reset}`)
-        
-        // Prevent recursive quotes in command
-        const cleanText = text.replace(/"/g, "'")
-        await handleCommand(`scan "${cleanText}"`)
-    }, [handleCommand, print, showPrompt, lang])
-
-    // Initialize Terminal
     useEffect(() => {
         if (!termRef.current || xtermRef.current) return
-
         const term = new Terminal({
-            theme: {
-                background: '#00000000',
-                foreground: '#e2e2e2',
-                cursor: '#00f2ff',
-                green: '#00ff88',
-                cyan: '#00f2ff',
-                yellow: '#ffd700',
-            },
-            fontFamily: '"JetBrains Mono", monospace',
+            theme: { background: '#00000000', foreground: '#e2e2e2', cursor: '#22C55E', green: '#22C55E', cyan: '#06B6D4', yellow: '#EAB308' },
+            fontFamily: '"Fira Code", monospace',
             fontSize: 13,
             cursorBlink: true,
+            lineHeight: 1.2
         })
-
         const fitAddon = new FitAddon()
         term.loadAddon(fitAddon)
         term.open(termRef.current)
         setTimeout(() => fitAddon.fit(), 100)
         xtermRef.current = term
         
-        term.writeln(`\r\n${C.cyan}${C.bold}  ██╗     ███████╗███╗   ███╗███████╗ ██████╗ ███╗   ██╗███████╗${C.reset}`)
-        term.writeln(`${C.cyan}${C.bold}  ██║     ██╔════╝████╗ ████║██╔════╝██╔═══██╗████╗  ██║██╔════╝${C.reset}`)
-        term.writeln(`${C.cyan}${C.bold}  ██║     █████╗  ██╔████╔██║█████╗  ██║   ██║██╔██╗ ██║█████╗${C.reset}`)
-        term.writeln(`${C.cyan}${C.bold}  ██║     ██╔══╝  ██║╚██╔╝██║██╔══╝  ██║   ██║██║╚██╗██║██╔══╝${C.reset}`)
-        term.writeln(`${C.cyan}${C.bold}  ███████╗███████╗██║ ╚═╝ ██║███████╗╚██████╔╝██║ ╚████║███████╗${C.reset}`)
-        term.writeln(`${C.cyan}${C.bold}  ╚══════╝╚══════╝╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝${C.reset}`)
-        term.writeln(`${C.gray}  v2.0 Gravity Sandbox — 14D Business Simulation Engine${C.reset}`)
-        term.writeln(`${C.gray}  ─────────────────────────────────────────────────${C.reset}`)
-        term.writeln(`${C.yellow}  TIP: The vaguer the description, the higher the σ (uncertainty), and the greater the risk of cash flow collapse.${C.reset}`)
-        term.writeln(`${C.gray}  First time here? Type ${C.green}project new "Your Project"${C.gray} to create a profile ${C.reset}`)
-        term.writeln(`${C.gray}  Start scanning: Type ${C.green}scan "Your idea"${C.gray} | Type ${C.green}lang zh${C.gray} to switch to Chinese${C.reset}\r\n`)
-
-        // Native terminal input has been migrated to the external HTML input bar below for better UX
-
         const handleResize = () => fitAddon.fit()
         window.addEventListener('resize', handleResize)
-
-        let observer: ResizeObserver | null = null;
-        if (termRef.current) {
-            observer = new ResizeObserver(() => {
-                fitAddon.fit()
-            });
-            observer.observe(termRef.current);
-        }
-
         return () => {
-            if (observer) observer.disconnect();
             window.removeEventListener('resize', handleResize)
-            term.dispose()
-            xtermRef.current = null
+            term.dispose(); xtermRef.current = null
         }
-    }, [handleCommand])
+    }, [])
 
     return (
-        <div 
-            className={`w-full h-full bg-[#0a0a0c] flex flex-col transition-all duration-300 ${isDragging ? 'ring-2 ring-cyan-500 bg-gray-900 opacity-80' : ''}`}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={handleFileDrop}
-            onClick={() => inputRef.current?.focus()}
-        >
-            {/* Upper: Standard Output Log */}
-            <div className="flex-1 overflow-hidden pl-6 pr-1 pt-6 pb-2 cursor-text">
-                <div ref={termRef} className="w-full h-full" />
+        <div className="w-full h-full bg-black flex flex-col transition-all duration-300 font-sans scanlines relative overflow-hidden">
+            <div className="crt-overlay" />
+            
+            {/* Terminal Window */}
+            <div className="flex-1 min-w-0 relative">
+                <div ref={termRef} className="absolute inset-0 p-4" onClick={() => inputRef.current?.focus()} />
             </div>
 
-            {/* Smart Probing Panel (Dynamic UI Injection) */}
+            {/* Dynamic Probing Panel */}
             {isInterviewing && activeQuestions.length > 0 && (
-                <div className="mx-6 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="flex flex-col gap-3 p-4 bg-gray-900/40 border border-cyan-500/30 rounded-lg backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.1)]">
-                        {activeQuestions.map((q) => (
-                            <div key={q.id} className="flex flex-col gap-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="px-1.5 py-0.5 text-[10px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded font-bold">
-                                        {q.dimension}
-                                    </span>
-                                    <span className="text-gray-100 text-sm font-medium">{q.text}</span>
+                <div className="px-6 mb-4 relative z-10">
+                    <div className="bg-[#0F172A]/90 border border-cyan-500/30 rounded-lg p-4 shadow-[0_0_30px_rgba(6,182,212,0.1)] backdrop-blur-md">
+                        <div className="flex-1 flex flex-col gap-3">
+                            {activeQuestions.map(q => (
+                                <div key={q.id} className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="px-1.5 py-0.5 text-[9px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded font-bold uppercase">{q.dimension}</span>
+                                        <p className="text-gray-100 font-medium text-sm">{q.text}</p>
+                                    </div>
+                                    {q.type === 'choice' && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {q.options?.map((opt: any) => (
+                                                <button 
+                                                    key={opt.value}
+                                                    onClick={() => answerInterview(opt.label, q.id)}
+                                                    className="px-3 py-1 bg-gray-800 hover:bg-cyan-500/20 border border-gray-700 hover:border-cyan-500/50 rounded text-xs text-gray-300 transition-all"
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                {q.type === 'choice' && (
-                                    <div className="flex flex-wrap gap-2 mt-1">
-                                        {q.options?.map((opt: any) => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => {
-                                                    xtermRef.current?.writeln(`\r\n> [CHOSE] ${opt.label}`);
-                                                    answerInterview(opt.label, q.id);
-                                                }}
-                                                className="group relative px-3 py-1.5 bg-gray-800/60 hover:bg-cyan-500/20 border border-gray-700 hover:border-cyan-500/50 rounded text-xs text-gray-400 hover:text-cyan-300 transition-all duration-200"
-                                                title={opt.description}
-                                            >
-                                                {opt.label}
-                                                {opt.description && (
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black border border-gray-700 rounded text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity">
-                                                        {opt.description}
-                                                    </div>
-                                                )}
-                                            </button>
-                                        ))}
-                                        <button
-                                            onClick={() => inputRef.current?.focus()}
-                                            className="px-3 py-1.5 bg-gray-800/30 border border-gray-700/50 border-dashed rounded text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                                        >
-                                            {lang === 'zh' ? '自定义输入...' : 'Custom input...'}
-                                        </button>
-                                    </div>
-                                )}
-                                {q.type === 'yesno' && (
-                                    <div className="flex gap-2 mt-1">
-                                        {(lang === 'zh' ? ['是 (Yes)', '否 (No)'] : ['Yes', 'No']).map((label) => (
-                                            <button
-                                                key={label}
-                                                onClick={() => {
-                                                    xtermRef.current?.writeln(`\r\n> [CHOSE] ${label}`);
-                                                    answerInterview(label, q.id);
-                                                }}
-                                                className="px-4 py-1.5 bg-gray-800/60 hover:bg-cyan-500/20 border border-gray-700 hover:border-cyan-500/50 rounded text-xs text-gray-400 hover:text-cyan-300 transition-all"
-                                            >
-                                                {label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Lower: Visual Input Bar */}
-            <div className="h-14 bg-black border-t border-gray-800/60 flex items-center px-6 shrink-0 font-mono text-sm relative shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-10">
-                <span className="text-cyan-500 mr-3 font-bold">{'>'}</span>
+            {/* Input Bar */}
+            <footer className="h-12 border-t border-gray-800 bg-black flex items-center px-4 gap-3 shrink-0 relative z-20">
+                <TerminalIcon className="w-4 h-4 text-cyan-500/50" />
+                <span className="text-xs font-bold text-cyan-500">{'>'}</span>
                 <input 
                     ref={inputRef}
-                    className="flex-1 bg-transparent text-gray-200 focus:outline-none placeholder-gray-600/50"
-                    placeholder={
-                        activeQuestions.find(q => q.type === 'text')?.placeholder || 
-                        "Type your command or drop a PRD file here..."
-                    }
+                    className="flex-1 bg-transparent text-gray-200 focus:outline-none placeholder-gray-700 font-display text-sm tracking-wide"
+                    placeholder="Enter command..."
                     autoFocus
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                             const cmd = e.currentTarget.value
+                            if (!cmd.trim()) return
                             e.currentTarget.value = ''
-                            if (cmd.trim()) {
-                                const last = historyRef.current[historyRef.current.length - 1]
-                                if (cmd.trim() !== last) historyRef.current.push(cmd.trim())
-                                xtermRef.current?.writeln(`\r\n> ${cmd}`)
-                                historyIndexRef.current = -1
-                                handleCommand(cmd)
-                            }
-                        } else if (e.key === 'ArrowUp') {
-                            e.preventDefault()
-                            if (historyRef.current.length > 0) {
-                                if (historyIndexRef.current === -1) {
-                                    currentInputRef.current = e.currentTarget.value
-                                }
-                                if (historyIndexRef.current < historyRef.current.length - 1) {
-                                    historyIndexRef.current++
-                                    e.currentTarget.value = historyRef.current[historyRef.current.length - 1 - historyIndexRef.current]
-                                }
-                            }
-                        } else if (e.key === 'ArrowDown') {
-                            e.preventDefault()
-                            if (historyIndexRef.current > -1) {
-                                historyIndexRef.current--
-                                if (historyIndexRef.current === -1) {
-                                    e.currentTarget.value = currentInputRef.current
-                                } else {
-                                    e.currentTarget.value = historyRef.current[historyRef.current.length - 1 - historyIndexRef.current]
-                                }
-                            }
+                            xtermRef.current?.writeln(`\r\n${C.gray}${C.bold}❯ ${cmd}${C.reset}`)
+                            handleCommand(cmd)
                         }
                     }}
                 />
-                <div className="flex items-center gap-4 text-[10px] text-gray-600 tracking-wider hidden sm:flex">
-                    <button 
-                        onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} 
-                        className="hover:text-cyan-400 transition-colors font-bold uppercase"
-                    >
-                        [{lang === 'en' ? 'EN' : 'ZH'}]
-                    </button>
-                    <span>~/lemeone-lab (main*)</span>
+                <div className="flex items-center gap-4 text-[9px] font-bold text-gray-600 uppercase border-l border-gray-800 pl-4">
+                    <div className="flex items-center gap-1 hover:text-cyan-400 cursor-pointer" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')}>
+                        <Globe className="w-3 h-3" />
+                        <span>{lang}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-green-500/50">
+                        <Activity className="w-3 h-3" />
+                        <span>CONNECTED</span>
+                    </div>
                 </div>
-            </div>
+            </footer>
         </div>
     )
 }

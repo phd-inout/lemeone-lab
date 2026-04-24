@@ -253,6 +253,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     epoch: 0,
                     teamSize: 'STARTUP',
                     techDebt: 0,
+                    techDebtLambda: (industryCtx as any)?.techDebtLambda || 0.5,
                     currentStage: 'SEED',
                     seedText,
                     userARPU: industryCtx?.baselineARPU || 45,
@@ -348,6 +349,7 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     epoch: 0,
                     teamSize: 'STARTUP',
                     techDebt: 0,
+                    techDebtLambda: (industryCtx as any)?.techDebtLambda || 0.5,
                     currentStage: 'SEED',
                     seedText: newHistory.join('\n'),
                     userARPU: finalMonthlyFee,
@@ -466,20 +468,24 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     Math.max(0, Math.min(1, v * 0.8 + perturbation.mean[i] * 0.2))
                 ) as Vector14D
 
-                const updatedAgents = runCollision(nextVector, s.techDebt + 5, s.agents, s.metrics.earningPotential)
+                const lambda = s.techDebtLambda || 0.5
+                const coreComplexity = (s.productVector[0] + s.productVector[1] + s.productVector[2] + s.productVector[3]) / 4
+                const featureDebtBump = 3.0 * lambda * (0.5 + coreComplexity)
 
-                const nextJournal = s.assets.journal + `\n> **[CMD]** Added new feature: "${description}" at T+${s.epoch}. (Tech Debt +5%)\n`
+                const updatedAgents = runCollision(nextVector, s.techDebt + featureDebtBump, s.agents, s.metrics.earningPotential)
+
+                const nextJournal = s.assets.journal + `\n> **[CMD]** Added new feature: "${description}" at T+${s.epoch}. (Tech Debt +${featureDebtBump.toFixed(1)}%)\n`
 
                 set({
                     sandboxState: {
                         ...s,
                         productVector: nextVector,
                         agents: updatedAgents,
-                        techDebt: s.techDebt + 5,
+                        techDebt: s.techDebt + featureDebtBump,
                         assets: { ...s.assets, journal: nextJournal }
                     }
                 })
-                get().pushLine(`[CMD] Feature "${description}" integrated. TechDebt +5.`)
+                get().pushLine(`[CMD] Feature "${description}" integrated. TechDebt +${featureDebtBump.toFixed(1)}%`)
             },
 
             setTeamSize: (size: TeamSize) => {

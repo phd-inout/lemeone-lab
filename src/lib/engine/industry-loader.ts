@@ -15,6 +15,7 @@ export interface IndustryContext {
   rawMarkdown: string; // full MD content for prompt injection
   hardConstraints: { dim: string; floor: number }[]; // Physics Laws survival floors
   baselineARPU: number; // Monthly ARPU in USD for MRR calculation
+  techDebtLambda: number; // Tech debt gravity coefficient
 }
 
 // Industry keyword routing table
@@ -66,6 +67,12 @@ function parseHardConstraints(markdown: string): { dim: string; floor: number }[
   return constraints;
 }
 
+/** Extract TechDebt λ from industry MD (e.g. "TechDebt λ: 1.5") */
+function parseTechDebtLambda(markdown: string): number {
+  const match = markdown.match(/TechDebt\s*λ:\s*([\d.]+)/i);
+  return match ? parseFloat(match[1]) : 0.5; // Default to 0.5 if not found
+}
+
 /** Extract ARPU_Baseline from industry MD (e.g. "ARPU_Baseline: $5000") */
 function parseARPU(markdown: string): number | null {
   const match = markdown.match(/ARPU_Baseline:\s*\$?([\d,]+)/i);
@@ -110,6 +117,7 @@ export function loadIndustryProfile(text: string): IndustryContext | null {
       rawMarkdown,
       hardConstraints: parseHardConstraints(rawMarkdown),
       baselineARPU: parsedARPU ?? fallbackARPU,
+      techDebtLambda: parseTechDebtLambda(rawMarkdown),
     };
   } catch (e) {
     console.error('[IndustryLoader] Failed to load profile:', e);

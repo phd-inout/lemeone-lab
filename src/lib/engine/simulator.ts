@@ -79,7 +79,15 @@ export async function stepSimulation(state: SandboxState): Promise<SandboxState>
   nextProductVector[13] = Math.min(1.0, (nextProductVector[13] || 0) + viralGrowth + 0.002);
 
   const teamSize = (state as any).teamSize || 'STARTUP';
-  const techDebtBump = teamSize === 'SOLO' ? 1 : teamSize === 'STARTUP' ? 3 : 8;
+  
+  // More scientific TechDebt model
+  // Base entropy: 0.8% weekly. Influenced by Industry Lambda and Product Complexity.
+  const lambda = state.techDebtLambda || 0.5;
+  const coreComplexity = (state.productVector[0] + state.productVector[1] + state.productVector[2] + state.productVector[3]) / 4;
+  const teamCoordinationTax = teamSize === 'SOLO' ? 0.8 : teamSize === 'STARTUP' ? 1.2 : teamSize === 'GROWTH' ? 2.5 : 5.0;
+  
+  // techDebtBump = BaseRate * λ * Complexity * CoordinationTax
+  const techDebtBump = 0.5 * lambda * (0.5 + coreComplexity) * teamCoordinationTax;
   const nextTechDebt = state.techDebt + techDebtBump;
 
   const updatedAgents = await runCollisionAsync(nextProductVector, nextTechDebt, agentsClone, previousActiveUsers, weights);

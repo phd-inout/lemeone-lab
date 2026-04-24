@@ -6,13 +6,37 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AssetPanel from '@/components/AssetPanel';
 import VisualizationPanel from '@/components/VisualizationPanel';
+import { 
+  Activity, 
+  ShieldAlert, 
+  DollarSign, 
+  Users, 
+  Cpu, 
+  Globe, 
+  BookOpen,
+  Zap
+} from 'lucide-react';
 
 const TerminalUI = dynamic(() => import('@/components/TerminalUI'), { ssr: false });
+
+// Helper component for Stat Bar
+const HUDStat = ({ icon: Icon, label, value, colorClass, subValue }: any) => (
+  <div className="flex flex-col border-r border-gray-800/50 px-5 last:border-0">
+    <div className="flex items-center gap-1.5 mb-0.5">
+      <Icon className={`w-3 h-3 ${colorClass} opacity-70`} />
+      <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold">{label}</span>
+    </div>
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-sm font-display font-bold text-gray-100 tracking-tight">{value}</span>
+      {subValue && <span className="text-[8px] text-gray-600 font-bold">{subValue}</span>}
+    </div>
+  </div>
+);
 
 export default function Home() {
   const sandboxState = useLemeoneStore(s => s.sandboxState);
   const [mounted, setMounted] = useState(false);
-  const [leftWidth, setLeftWidth] = useState(30);
+  const [leftWidth, setLeftWidth] = useState(25);
   const [rightWidth, setRightWidth] = useState(30);
 
   useEffect(() => {
@@ -24,21 +48,14 @@ export default function Home() {
     const startX = e.clientX;
     const startWidth = leftWidth;
     const fullWidth = window.innerWidth;
-
     const onMouseMove = (moveEvent: MouseEvent) => {
       const delta = moveEvent.clientX - startX;
-      setLeftWidth(Math.max(15, Math.min(50, startWidth + (delta / fullWidth) * 100)));
+      setLeftWidth(Math.max(15, Math.min(45, startWidth + (delta / fullWidth) * 100)));
     };
-
     const onMouseUp = () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
-
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
@@ -48,21 +65,14 @@ export default function Home() {
     const startX = e.clientX;
     const startWidth = rightWidth;
     const fullWidth = window.innerWidth;
-
     const onMouseMove = (moveEvent: MouseEvent) => {
       const delta = startX - moveEvent.clientX; 
-      setRightWidth(Math.max(15, Math.min(60, startWidth + (delta / fullWidth) * 100)));
+      setRightWidth(Math.max(15, Math.min(50, startWidth + (delta / fullWidth) * 100)));
     };
-
     const onMouseUp = () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
-
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   };
@@ -70,123 +80,129 @@ export default function Home() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-black text-slate-200 min-h-screen flex flex-col font-mono selection:bg-primary selection:text-black scanlines overflow-hidden">
+    <div className="bg-[#020617] text-slate-200 h-screen flex flex-col font-sans selection:bg-cyan-500/30 selection:text-white scanlines overflow-hidden">
       
       {/* 1. TOP TELEMETRY HUD */}
-      <div className="h-14 border-b border-border-dark bg-[#0a0a0a] flex items-center px-6 justify-between shrink-0">
+      <header className="h-16 border-b border-gray-800 bg-[#0F172A]/80 backdrop-blur-xl flex items-center px-6 justify-between shrink-0 z-50">
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#00f2ff]"></span>
-            <span className="font-bold tracking-tighter text-lg">LEMEONE_LAB <span className="text-gray-600">v2.0</span></span>
+          <div className="flex items-center gap-3 pr-8 border-r border-gray-800">
+            <div className="relative">
+              <Cpu className="w-6 h-6 text-cyan-500 glow-cyan animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-display font-bold tracking-tighter text-lg leading-tight uppercase">LEMEONE_LAB <span className="text-gray-600">v2.0</span></span>
+              <span className="text-[9px] text-cyan-500 font-bold tracking-tighter uppercase opacity-70">OS_CORE // STABLE</span>
+            </div>
           </div>
-          <div className="flex gap-6 text-[10px] uppercase tracking-widest text-gray-400">
-            {/* 1. 活跃用户 */}
-            <div className="flex flex-col">
-              <span className="text-gray-600">活跃用户</span>
-              <span className={sandboxState ? 'text-primary' : 'text-gray-600'}>
-                {sandboxState ? (sandboxState.metrics?.activePaidUserCount || 0).toLocaleString() : '---'}
-              </span>
-            </div>
-            {/* 2. 付费用户 */}
-            <div className="flex flex-col">
-              <span className="text-gray-600">付费用户</span>
-              <span className={sandboxState ? ((sandboxState.metrics?.earningPotential || 0) < 10 ? 'text-red-500' : 'text-green-400 font-bold') : 'text-gray-600'}>
-                {sandboxState ? (sandboxState.metrics?.earningPotential || 0).toLocaleString() : '---'}
-              </span>
-            </div>
-            {/* 3. 月营收 MRR */}
-            <div className="flex flex-col">
-              <span className="text-gray-600">月营收_MRR</span>
-              <span className={sandboxState ? ((sandboxState.metrics?.mrr || 0) > 0 ? 'text-green-400 font-bold' : 'text-yellow-500') : 'text-gray-600'}>
-                {sandboxState ? '$' + (sandboxState.metrics?.mrr || 0).toLocaleString() : '---'}
-              </span>
-            </div>
-            {/* 4. 转化率 */}
-            <div className="flex flex-col">
-              <span className="text-gray-600">转化率</span>
-              <span className={sandboxState ? ((sandboxState.metrics?.conversionRate || 0) > 0.03 ? 'text-green-400' : 'text-yellow-500') : 'text-gray-600'}>
-                {sandboxState ? ((sandboxState.metrics?.conversionRate || 0) * 100).toFixed(2) + '%' : '---'}
-              </span>
-            </div>
-            {/* 5. 生存几率 */}
-            <div className="flex flex-col">
-              <span className="text-gray-600">生存几率</span>
-              <span className={sandboxState ? ((sandboxState.metrics?.survivalRate || 0) > 0.5 ? 'text-green-400 font-bold' : 'text-red-500 font-bold animate-pulse') : 'text-gray-600'}>
-                {sandboxState ? ((sandboxState.metrics?.survivalRate || 0) * 100).toFixed(1) + '%' : '---'}
-              </span>
-            </div>
-            {/* Epoch */}
-            <div className="flex flex-col">
-              <span className="text-gray-600">周期</span>
-              <span className={sandboxState ? 'text-white' : 'text-gray-600'}>
-                {sandboxState ? `T+${sandboxState.epoch || 0}` : 'PRE-SIM'}
-              </span>
-            </div>
+
+          <div className="flex items-center">
+            <HUDStat 
+              icon={Users} 
+              label="活跃用户" 
+              value={sandboxState?.metrics.activePaidUserCount.toLocaleString() || '---'} 
+              colorClass="text-cyan-400"
+              subValue={sandboxState ? `T+${sandboxState.epoch}` : ''}
+            />
+            <HUDStat 
+              icon={DollarSign} 
+              label="月营收_MRR" 
+              value={sandboxState ? `$${sandboxState.metrics.mrr.toLocaleString()}` : '---'} 
+              colorClass="text-green-400"
+            />
+            <HUDStat 
+              icon={ShieldAlert} 
+              label="技术债务" 
+              value={sandboxState ? `${sandboxState.techDebt.toFixed(1)}%` : '---'} 
+              colorClass="text-yellow-500"
+            />
+            <HUDStat 
+              icon={Activity} 
+              label="生存几率" 
+              value={sandboxState ? `${(sandboxState.metrics.survivalRate * 100).toFixed(1)}%` : '---'} 
+              colorClass={sandboxState?.metrics.survivalRate && sandboxState.metrics.survivalRate > 0.5 ? 'text-green-400' : 'text-red-500'}
+            />
           </div>
         </div>
         
-        <div className="flex items-center gap-6 text-xs font-bold tracking-widest">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">STATUS:</span>
-            <span className="text-green-500">[GRAVITY_ENGAGED]</span>
+        <div className="flex items-center gap-6">
+          <div className="hidden xl:flex flex-col items-end mr-4">
+            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Industry_Cluster</span>
+            <span className="text-xs text-white font-display font-medium uppercase">{sandboxState?.industryName || 'SCANNING...'}</span>
           </div>
-          <Link href="/docs" className="text-gray-400 hover:text-white transition-colors border border-gray-800 px-3 py-1 rounded bg-[#111] hover:bg-[#222]">
-            READ DOCS
+          <Link href="/docs" className="flex items-center gap-2 text-xs font-bold tracking-widest text-gray-400 hover:text-cyan-400 transition-all border border-gray-800 hover:border-cyan-500/50 px-4 py-2 rounded-md bg-[#111] hover:bg-cyan-500/5 group">
+            <BookOpen className="w-3.5 h-3.5 group-hover:animate-bounce" />
+            阅读文档
           </Link>
         </div>
-      </div>
+      </header>
 
       {/* 2. MAIN GRID LAYOUT */}
       <main className="flex-1 flex overflow-hidden">
         
-        {/* LEFT: Visualization Area (Tabs) */}
-        <aside style={{ width: `${leftWidth}%` }} className="bg-[#050505] p-2 flex flex-col overflow-hidden shrink-0">
+        {/* LEFT: Visualization Area */}
+        <aside style={{ width: `${leftWidth}%` }} className="bg-[#050505] p-3 flex flex-col overflow-hidden shrink-0">
           <VisualizationPanel />
         </aside>
 
         {/* DRAG HANDLE 1 */}
         <div 
-          className="w-1 cursor-col-resize bg-border-dark hover:bg-primary transition-colors z-50 shrink-0"
+          className="w-px hover:w-1 cursor-col-resize bg-gray-800 hover:bg-cyan-500 transition-all z-50 shrink-0"
           onMouseDown={startResizingLeft}
         />
 
         {/* CENTER: Terminal */}
         <section className="flex-1 flex flex-col bg-black relative min-w-0 overflow-hidden">
-          <div className="absolute inset-0">
-            <TerminalUI />
-          </div>
+          <TerminalUI />
           
           {/* Subtle Overlay Grid */}
-          <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+          <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:32px_32px]"></div>
         </section>
 
         {/* DRAG HANDLE 2 */}
         <div 
-          className="w-1 cursor-col-resize bg-border-dark hover:bg-primary transition-colors z-50 shrink-0"
+          className="w-px hover:w-1 cursor-col-resize bg-gray-800 hover:bg-cyan-500 transition-all z-50 shrink-0"
           onMouseDown={startResizingRight}
         />
 
         {/* RIGHT: Strategic Assets */}
-        <aside style={{ width: `${rightWidth}%` }} className="bg-[#080808] p-4 flex flex-col overflow-hidden shrink-0">
-          <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-4 flex justify-between">
-            <span>Strategic_Asset_Reader</span>
-            <span className="text-yellow-500/50">ENCRYPTED</span>
+        <aside style={{ width: `${rightWidth}%` }} className="bg-[#050505] p-3 flex flex-col overflow-hidden shrink-0">
+          <div className="bg-black/40 border border-gray-800/60 rounded-lg flex-1 flex flex-col overflow-hidden">
+             <div className="px-4 py-2 border-b border-gray-800/60 flex justify-between items-center bg-[#0F172A]/40">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-3 h-3 text-yellow-500" />
+                  <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">战略资产_READER</span>
+                </div>
+                <span className="text-[9px] text-yellow-500/50 font-mono tracking-tighter">ENCRYPTED_STREAM</span>
+             </div>
+             <div className="flex-1 overflow-hidden p-1">
+                <AssetPanel />
+             </div>
           </div>
-          <AssetPanel />
         </aside>
 
       </main>
 
       {/* 3. BOTTOM INFO BAR */}
-      <div className="h-6 border-t border-border-dark bg-black px-4 flex items-center justify-between shrink-0 text-[9px] text-gray-700 tracking-tighter uppercase">
-        <div className="flex gap-4">
-          <span>Root: lemeone-lab/v2.0/physics-engine</span>
-          <span>PID: 10000_AGENTS</span>
+      <footer className="h-7 border-t border-gray-800 bg-[#020617] px-6 flex items-center justify-between shrink-0 text-[9px] text-gray-500 tracking-tighter uppercase font-bold">
+        <div className="flex gap-6 items-center">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            <span>Node: lemeone-lab/v2.0/main</span>
+          </div>
+          <span className="text-gray-700">|</span>
+          <span>PID: 100,000_AGENTS_ACTIVE</span>
+          <span className="text-gray-700">|</span>
+          <span>Resolution: {sandboxState?.tier || 'FREE'}</span>
         </div>
-        <div>
-          Memory_Safe: Standard | Simulation_Thread: ACTIVE
+        <div className="flex gap-4 items-center">
+          <div className="flex items-center gap-1">
+            <Globe className="w-3 h-3 opacity-50" />
+            <span>Latency: 24ms</span>
+          </div>
+          <span className="bg-gray-800 px-2 py-0.5 rounded text-gray-400">Memory: Stable</span>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

@@ -1,34 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
 
 @theme inline {
-  --color-primary: #ffffff;
-  --color-secondary: #a1a1aa;
-  --color-background-light: #f4f7f6;
-  --color-background-dark: #0a0a0a;
-  --color-panel-light: #f4f4f5;
-  --color-panel-dark: #18181b;
-  --color-border-light: #e4e4e7;
-  --color-border-dark: #27272a;
-  --font-display: var(--font-jetbrains-mono);
-  --font-sans: var(--font-space-grotesk);
+  --color-primary: #22C55E;
+  --color-secondary: #1E293B;
+  --color-background-dark: #020617;
+  --color-panel-dark: #0F172A;
+  --color-border-dark: #1E293B;
+  --font-display: 'Fira Code', monospace;
+  --font-sans: 'Fira Sans', sans-serif;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: #020617;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 4px;
+  background: #1E293B;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #334155;
 }
 
 .cursor-blink {
@@ -36,22 +34,17 @@
 }
 
 @keyframes blink {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
-.dark .scanlines {
+/* Cyberpunk Scanline Effect */
+.scanlines {
   position: relative;
+  overflow: hidden;
 }
 
-.dark .scanlines::before {
+.scanlines::before {
   content: " ";
   display: block;
   position: absolute;
@@ -59,11 +52,53 @@
   left: 0;
   bottom: 0;
   right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.02));
-  z-index: 50;
-  background-size: 100% 2px, 3px 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 100;
+  background-size: 100% 4px, 3px 100%;
   pointer-events: none;
-  opacity: 0.1;
+  opacity: 0.15;
+}
+
+/* CRT Glow Overlay */
+.crt-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.2) 100%);
+  pointer-events: none;
+  z-index: 90;
+}
+
+/* Neon Glows */
+.glow-green {
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+.glow-cyan {
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+}
+
+.glow-red {
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.border-glow-green {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.15);
+}
+
+.border-glow-cyan {
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+}
+
+@keyframes pulse-cyan {
+  0%, 100% { box-shadow: 0 0 5px rgba(6, 182, 212, 0.2); }
+  50% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.5); }
+}
+
+.animate-pulse-cyan {
+  animation: pulse-cyan 2s infinite;
 }
 
 .xterm-viewport {

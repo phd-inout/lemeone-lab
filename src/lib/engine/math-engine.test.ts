@@ -92,6 +92,7 @@ async function runComprehensiveAudit() {
         
         
         techDebt: 0,
+        techDebtLambda: 0.5,
         currentStage: 'SEED', seedText: "test", userARPU: 45, industryId: "ind_000", industryName: "Test", industryBaselineARPU: 45,
         productVector: baseVector,
         agents: generatePopulation(outlierSeed, 1000),
@@ -116,6 +117,7 @@ async function runComprehensiveAudit() {
         id: uuidv4(),
         epoch: 0,
         techDebt: 0,
+        techDebtLambda: 0.5,
         productVector: [0.8, 0.8, 0.8, 0.8, 0.8, 0.1, 0.7, 0.5, 0.8, 0.5, 0.5, 0.5, 0.5, 0.2],
         agents: generatePopulation({
             mean: [0.8, 0.8, 0.8, 0.8, 0.8, 0.1, 0.7, 0.5, 0.8, 0.5, 0.5, 0.5, 0.5, 0.2],

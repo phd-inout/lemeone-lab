@@ -68,10 +68,11 @@ export interface SandboxState {
   id: string
   projectId?: string
   tier: UserTier 
-  epoch: number
-  teamSize: TeamSize
-  techDebt: number
-  currentStage: CompanyStage
+  epoch: number,
+  teamSize: TeamSize,
+  techDebt: number,
+  techDebtLambda: number, // Tech debt gravity coefficient from industry
+  currentStage: CompanyStage,
   seedText: string
   userARPU: number // For compatibility, will store monthly fee or weighted average
   monetization: {
