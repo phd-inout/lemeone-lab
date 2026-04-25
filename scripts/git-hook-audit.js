@@ -59,28 +59,92 @@ function analyzeCodebase() {
     return results;
 }
 
+const { execSync } = require('child_process');
+
+// 1. WISDOM ENGINE (Programmer-Centric Insights)
+const WISDOM_LIBRARY = [
+    {
+        pattern: /auth|login|signup|password/i,
+        quote: "Jeff Bezos once said: 'If you make a customer unhappy in the physical world, they might tell 6 friends. If you make them unhappy on the Internet, they can tell 6,000 friends.'",
+        lesson: "Each extra step in your auth flow is a silent killer of conversion."
+    },
+    {
+        pattern: /api|router|endpoint|mcp/i,
+        quote: "The Bezos API Mandate: 'All teams will henceforth expose their data and functionality through service interfaces... anyone who doesn't do this will be fired.'",
+        lesson: "You're not just writing code; you're building a node in the future AI neural network."
+    },
+    {
+        pattern: /test|spec|jest|vitest/i,
+        quote: "Code without tests is broken by design.",
+        lesson: "Tests are the only way to sleep at night when D4 (STABLE) is your primary moat."
+    },
+    {
+        pattern: /package\.json|yarn\.lock|npm-shrinkwrap/i,
+        quote: "Dependency is a liability. Quibi spent $1.75B but failed due to lack of core agility.",
+        lesson: "Be careful. Every package you add is a debt you'll pay in λ (Velocity) later."
+    },
+    {
+        pattern: /performance|worker|calculate|math/i,
+        quote: "Premature optimization is the root of all evil.",
+        lesson: "Align D1 (PERF) with your vision. Don't polish the cabinet's back if no one sees it."
+    }
+];
+
 const commitMsgFile = process.argv[2];
 if (!commitMsgFile) process.exit(0);
 
 try {
-    const analysis = analyzeCodebase();
+    const analysis = analyzeCodebase(rootDir);
+    
+    // 2. DIFF SNIFFING (What did we change JUST NOW?)
+    const stagedDiff = execSync('git diff --cached', { cwd: rootDir }).toString();
+    let personalReflection = "Success is not final, failure is not fatal: it is the courage to continue that counts.";
+    let historicalContext = "Early Unix philosophy: Do one thing and do it well.";
+
+    for (const item of WISDOM_LIBRARY) {
+        if (item.pattern.test(stagedDiff)) {
+            personalReflection = item.lesson;
+            historicalContext = item.quote;
+            break;
+        }
+    }
+
+    // ASCII Visual Bar Helper
+    const bar = (val) => {
+        const full = Math.round(val * 10);
+        return "[" + "■".repeat(full) + "□".repeat(10 - full) + "] " + (val * 100).toFixed(0) + "%";
+    };
+
     const brief = `
-# --- LEMEONE-LAB STRATEGIC BRIEF ---
-# 
-# [📊 实时商业基因快照]
-# - 技术债重力 (λ): ${analysis.techDebtLambda}
-# - D5 (ENTRY): ${analysis.dims.D5_ENTRY} | D6 (MONETIZE): ${analysis.dims.D6_MONETIZE}
-# - 生态潜力 (D11): ${analysis.dims.D11_ECOSYSTEM}
-# 
-# [⚠️ 战略风险提示]
-# ${analysis.evidence.length ? analysis.evidence.map(e => '# * ' + e).join('\n') : '# * No critical risks detected.'}
+# ------------------------------------------------------------------
+# LEMEONE STRATEGIC BRIEF | V2.6 (Pro)
+# ------------------------------------------------------------------
+# [MARKET POSITIONING]
+# Archetype: ${analysis.archetype.toUpperCase()}
 #
-# 请在提交前确认本次代码改动是否符合上述商业重力趋势。
-# -----------------------------------
+# [📊 14D GRAVITY RADAR]
+# Velocity (λ) : ${analysis.techDebtLambda.toFixed(1)}x
+# Performance  : ${bar(analysis.dims.D1_PERF)}
+# UX/Interact  : ${bar(analysis.dims.D3_INTERACT)}
+# Stability    : ${bar(analysis.dims.D4_STABLE)}
+# Ecosystem    : ${bar(analysis.dims.D11_ECOSYSTEM)}
+# Growth Curve : ${bar(analysis.dims.D13_CURVE)}
+#
+# [🔮 PROGRAMMER REFLECTION]
+# > ${personalReflection}
+#
+# [🏛️ HISTORICAL INSIGHT]
+# "${historicalContext}"
+#
+# [🎯 EXECUTIVE DIRECTIVE]
+# > ${analysis.directive}
+#
+# ------------------------------------------------------------------
+# Please verify if this commit aligns with the project's gravity.
 `;
 
     const currentMsg = fs.readFileSync(commitMsgFile, 'utf-8');
     fs.writeFileSync(commitMsgFile, brief + currentMsg);
 } catch (e) {
-    // Fail silently to not block commit
+    // Fail silently
 }
