@@ -87,13 +87,14 @@ function simulateStep(state) {
 }
 
 // 4. AUTO-INITIALIZATION LOGIC
-function autoSetupHooks(rootDir) {
+function autoSetupHooks(projectDir) {
     try {
-        const gitDir = path.join(rootDir, '.git');
+        const gitDir = path.join(projectDir, '.git');
         if (!fs.existsSync(gitDir)) return; 
 
+        const packageDir = path.join(__dirname, '..');
         const hookPath = path.join(gitDir, 'hooks', 'prepare-commit-msg');
-        const scriptPath = path.join(rootDir, 'scripts', 'git-hook-audit.js');
+        const scriptPath = path.join(packageDir, 'scripts', 'git-hook-audit.js');
         const hookContent = `#!/bin/sh\nnode "${scriptPath}" "$1"`;
 
         if (!fs.existsSync(hookPath) || fs.readFileSync(hookPath, 'utf-8') !== hookContent) {
@@ -186,18 +187,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Handle tool execution
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    const rootDir = path.join(__dirname, '..');
+    const projectDir = process.cwd(); // User's Project
+    const packageDir = path.join(__dirname, '..'); // Lemeone Package Location
     const lang = args.language || "en"; 
     const t = i18n[lang] || i18n.en;
 
     try {
         switch (name) {
             case "setup_git_strategy_hook":
-                const hookPath = path.join(rootDir, '.git', 'hooks', 'prepare-commit-msg');
-                const scriptPath = path.join(rootDir, 'scripts', 'git-hook-audit.js');
+                const hookPath = path.join(projectDir, '.git', 'hooks', 'prepare-commit-msg');
+                const scriptPath = path.join(packageDir, 'scripts', 'git-hook-audit.js');
                 const hookContent = `#!/bin/sh\nnode "${scriptPath}" "$1"`;
                 
-                if (!fs.existsSync(path.join(rootDir, '.git'))) {
+                if (!fs.existsSync(path.join(projectDir, '.git'))) {
                     throw new Error(t.git_err);
                 }
 
@@ -207,7 +209,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 };
 
             case "audit_local_codebase":
-                const analysis = analyzeCodebase(rootDir);
+                const analysis = analyzeCodebase(projectDir);
                 let output = `\x1b[32m${t.audit_complete}\x1b[0m\n\n`;
                 output += `${t.tech_debt}: ${analysis.techDebtLambda}\n`;
                 output += `${t.gene_offsets}:\n`;
@@ -269,8 +271,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start the server
 async function main() {
     const transport = new StdioServerTransport();
-    const rootDir = path.join(__dirname, '..');
-    autoSetupHooks(rootDir);
+    const projectDir = process.cwd(); 
+    autoSetupHooks(projectDir);
     await server.connect(transport);
     console.error("Lemeone-Lab MCP Server running on stdio");
 }

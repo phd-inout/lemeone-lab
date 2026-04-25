@@ -4,7 +4,8 @@
   "private": true,
   "bin": {
     "lemeone-lab": "./bin/lemeone.js",
-    "skills": "./bin/lemeone.js"
+    "skills": "./bin/lemeone.js",
+    "lemeone-mcp": "./mcp-server/index.js"
   },
   "scripts": {
     "dev": "next dev",
