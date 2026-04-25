@@ -27,12 +27,14 @@ export GOOGLE_GENERATIVE_AI_API_KEY="your_key"
 npx prisma db push && npm run dev
 ```
 
-### Option B: Gemini CLI Skill (Native & Fast)
-For users of Gemini CLI. Performs 14D audits directly in your terminal dialogue.
+### Option B: Lemeone CLI (Native & Fast)
+For terminal-first power users. Performs 14D audits and manages industry skills directly from the command line.
 ```bash
-# Install the skill locally
-gemini skills install business-intelligence.skill --scope workspace
-/skills reload
+# Add a new skill cluster from GitHub
+npx skills add https://github.com/phd-inout/business-intelligence-skill
+
+# Start the dashboard and engine
+npx lemeone-lab
 ```
 
 ### Option C: MCP Server (Universal AI Interface)

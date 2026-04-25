@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "lemeone-lab": "./bin/lemeone.js"
+    "lemeone-lab": "./bin/lemeone.js",
+    "skills": "./bin/lemeone.js"
   },
   "scripts": {
     "dev": "next dev",
