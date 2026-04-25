@@ -5,7 +5,7 @@
   "bin": {
     "lemeone-lab": "./bin/lemeone.js",
     "skills": "./bin/lemeone.js",
-    "lemeone-mcp": "./mcp-server/index.js"
+    "lemeone-mcp": "./bin/mcp-loader.js"
   },
   "scripts": {
     "dev": "next dev",

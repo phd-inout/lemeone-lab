@@ -14,6 +14,6 @@
     "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "bin": {
-    "lemeone-mcp": "./index.js"
+    "lemeone-mcp": "../bin/mcp-loader.js"
   }
 }

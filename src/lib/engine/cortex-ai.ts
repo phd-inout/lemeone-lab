@@ -1,6 +1,6 @@
 "use server";
 
-import { loadIndustryProfile, IndustryContext, getAllIndustries, matchIndustry } from './industry-loader'
+import { loadIndustryProfile, IndustryContext, getAllIndustries, matchIndustry } from './industry-loader.ts'
 
 import fs from 'fs'
 import path from 'path'
