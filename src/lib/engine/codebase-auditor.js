@@ -2,77 +2,97 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Lemeone Strategic Codebase Auditor (Core Engine V2.5)
- * Shared between MCP Server and Git Hooks.
+ * Lemeone Evidence Collector (Core Engine V3.0 - Physical Layer)
+ * Collects project fingerprints for LLM-powered strategic auditing.
  */
-function analyzeCodebase(rootDir) {
-    const results = {
+function collectEvidence(rootDir) {
+    const evidence = {
+        dependencies: {},
+        devDependencies: {},
+        structure: [],
+        configs: [],
+        uiTokens: {}, 
+        schemas: {}, // NEW: Capture DB schemas for D2
+        logicSnippets: {}, // NEW: Capture core lib/utils for D7
+        i18n: {}, // NEW: Capture i18n configs for D12
+        readmeSnippet: "",
         techDebtLambda: 0.5,
-        archetype: "Unknown Entity",
-        dims: {
-            D1_PERF: 0.5,
-            D3_INTERACT: 0.5,
-            D4_STABLE: 0.5,
-            D5_ENTRY: 0.5,
-            D6_MONETIZE: 0.5,
-            D11_ECOSYSTEM: 0.5,
-            D13_CURVE: 0.5
-        },
-        insights: [],
-        evidence: [],
-        directive: "Maintain current trajectory."
+        timestamp: new Date().toISOString()
     };
 
-    // 1. Vision & Documentation Density
-    const readmePath = path.join(rootDir, 'README.md');
-    let hasScientificVision = false;
-    if (fs.existsSync(readmePath)) {
-        const readme = fs.readFileSync(readmePath, 'utf-8').toLowerCase();
-        if (readme.includes('performance') || readme.includes('real-time')) results.dims.D1_PERF = 0.8;
-        if (readme.includes('scientific') || readme.includes('deterministic')) {
-            results.dims.D13_CURVE = 0.8;
-            hasScientificVision = true;
-        }
-    }
-
-    // 2. Technical Fingerprinting
+    // 1. Package Analysis
     const packageJsonPath = path.join(rootDir, 'package.json');
-    let hasModernUI = false;
-    let hasTesting = false;
     if (fs.existsSync(packageJsonPath)) {
         try {
             const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-            const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
-            if (deps['framer-motion'] || deps['tailwindcss']) hasModernUI = true;
-            if (deps['jest'] || deps['eslint']) hasTesting = true;
-            if (deps['@ai-sdk/google'] || deps['ai']) results.techDebtLambda = 1.8;
+            evidence.dependencies = pkg.dependencies || {};
+            evidence.devDependencies = pkg.devDependencies || {};
+            
+            // Initial Lambda hint based on AI usage
+            const deps = { ...evidence.dependencies, ...evidence.devDependencies };
+            if (deps['@ai-sdk/google'] || deps['ai'] || deps['openai']) evidence.techDebtLambda = 2.0;
         } catch (e) {}
     }
 
-    results.dims.D3_INTERACT = hasModernUI ? 0.8 : 0.4;
-    results.dims.D4_STABLE = hasTesting ? 0.7 : 0.3;
+    // 2. Deep Directory Sampling
+    function walk(dir, depth = 0) {
+        if (depth > 3) return; // Increased depth for better mapping
+        if (!fs.existsSync(dir)) return;
+        
+        const files = fs.readdirSync(dir);
+        files.forEach(file => {
+            const ignoreList = ['node_modules', '.git', '.next', 'dist', 'out', 'build', '.prisma'];
+            if (ignoreList.some(ignore => file.includes(ignore))) return;
+            
+            const fullPath = path.join(dir, file);
+            const stats = fs.statSync(fullPath);
+            const relPath = path.relative(rootDir, fullPath);
 
-    // 3. Ecosystem Depth
-    const docsDir = path.join(rootDir, 'src/content/docs');
-    const docCount = fs.existsSync(docsDir) ? fs.readdirSync(docsDir).filter(f => f.endsWith('.md')).length : 0;
-    results.dims.D11_ECOSYSTEM = Math.min(0.9, 0.3 + (docCount * 0.1));
+            if (stats.isDirectory()) {
+                evidence.structure.push(`${relPath}/`);
+                walk(fullPath, depth + 1);
+            } else {
+                evidence.structure.push(relPath);
+                
+                // --- CATEGORIZED SAMPLING ---
+                const content = stats.size < 30000 ? fs.readFileSync(fullPath, 'utf-8') : "";
+                
+                // A. UI/Styling (D3)
+                if (file.includes('tailwind') || file.includes('globals.css') || file.includes('theme')) {
+                    evidence.uiTokens[file] = content.substring(0, 3000);
+                }
+                
+                // B. Schemas/Data Model (D2)
+                if (file.endsWith('.prisma') || file.endsWith('.sql') || (relPath.includes('models') && file.endsWith('.ts'))) {
+                    evidence.schemas[file] = content.substring(0, 5000);
+                }
 
-    // 4. Archetype & Directive Logic
-    if (results.dims.D11_ECOSYSTEM > 0.7 && results.dims.D13_CURVE > 0.7) {
-        results.archetype = "Technical Fortress (High Barrier)";
-        results.insights.push("You are building a high-moat ecosystem. Developer adoption is your primary currency.");
-        if (results.dims.D1_PERF < 0.6) results.directive = "URGENT: Optimize PERF (D1) to match your 'Scientific' positioning.";
-    } else if (results.dims.D5_ENTRY > 0.7 && results.dims.D3_INTERACT > 0.7) {
-        results.archetype = "Viral Growth Engine (Product-Led)";
-        results.insights.push("Low friction and high interaction detected. UX polish is your killer feature.");
-        results.directive = "Action: Watch D6 (Monetize) closely to avoid becoming a 'Forever Free' tool.";
-    } else {
-        results.archetype = "Early Prototype (Agile Mode)";
-        results.insights.push("Standard configuration detected. Focus on defining your 14D unfair advantage.");
-        results.directive = "Action: Solidify vision in README.md to anchor your 14D vector.";
+                // C. Core Business Logic (D7/D11)
+                if ((relPath.includes('lib/engine') || relPath.includes('utils/math')) && file.endsWith('.ts')) {
+                    evidence.logicSnippets[file] = content.substring(0, 3000);
+                }
+
+                // D. Globalization (D12)
+                if (file.includes('i18n') || file.includes('locale') || relPath.includes('locales/')) {
+                    evidence.i18n[file] = content.substring(0, 1000);
+                }
+
+                // E. General Configs (D4/D5/D6/D10)
+                if (file.includes('config') || file.includes('auth') || file.includes('stripe') || file.includes('api')) {
+                    evidence.configs.push(relPath);
+                }
+            }
+        });
+    }
+    walk(rootDir);
+
+    // 3. Vision Snippet
+    const readmePath = path.join(rootDir, 'README.md');
+    if (fs.existsSync(readmePath)) {
+        evidence.readmeSnippet = fs.readFileSync(readmePath, 'utf-8').substring(0, 2000);
     }
 
-    return results;
+    return evidence;
 }
 
-module.exports = { analyzeCodebase };
+module.exports = { collectEvidence, analyzeCodebase: collectEvidence }; // Alias for backward compatibility during transition

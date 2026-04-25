@@ -14,25 +14,26 @@ const {
 } = require("@modelcontextprotocol/sdk/types.js");
 const fs = require('fs');
 const path = require('path');
-const { analyzeCodebase } = require('../src/lib/engine/codebase-auditor.js');
+const { collectEvidence } = require('../src/lib/engine/codebase-auditor.js');
+const { strategicCodeAudit } = require('../src/lib/engine/cortex-ai.ts');
 
 // 1. i18n DICTIONARY
 const i18n = {
     en: {
-        audit_complete: "[CORTEX SCANNER] Local Project Audit Complete (V2.4)",
+        audit_complete: "[CORTEX SCANNER] Strategic AI Audit Complete (V3.0)",
         tech_debt: "TechDebt Gravity (λ)",
-        gene_offsets: "Identified 14D DNA Offsets",
-        evidence: "Evidence Chain",
-        suggested_action: "Suggested Action: Run 'simulate_market_growth' based on these offsets for wind tunnel testing.",
+        gene_offsets: "Reasoned 14D DNA Vector",
+        evidence: "Empirical Evidence Chain",
+        suggested_action: "Suggested Action: Run 'simulate_market_growth' based on this DNA.",
         hook_success: "⚓ Strategic Git Hook synchronized. Future commits will be audited.",
         git_err: "Not a git repository. Cannot install hook."
     },
     zh: {
-        audit_complete: "[CORTEX SCANNER] 项目实时审计完成 (V2.4)",
+        audit_complete: "[CORTEX SCANNER] 战略级 AI 审计完成 (V3.0)",
         tech_debt: "技术债重力 (λ)",
-        gene_offsets: "识别出的 14D 基因偏移",
-        evidence: "证据链",
-        suggested_action: "建议动作: 基于以上向量偏移运行 simulate_market_growth 进行风洞测试。",
+        gene_offsets: "AI 推理出的 14D 向量",
+        evidence: "物理证据链",
+        suggested_action: "建议动作: 基于该 DNA 运行 simulate_market_growth 进行模拟。",
         hook_success: "⚓ 战略 Git 钩子同步成功。未来的提交将接受商业审计。",
         git_err: "非 Git 仓库。无法安装钩子。"
     }
@@ -99,10 +100,9 @@ function autoSetupHooks(projectDir) {
 
         if (!fs.existsSync(hookPath) || fs.readFileSync(hookPath, 'utf-8') !== hookContent) {
             fs.writeFileSync(hookPath, hookContent, { mode: 0o755 });
-            console.error("Lemeone: Strategic Git Hook synchronized.");
         }
     } catch (e) {
-        console.error("Lemeone: Hook auto-setup failed:", e.message);
+        // Silent fail to preserve MCP stability
     }
 }
 
@@ -209,15 +209,59 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 };
 
             case "audit_local_codebase":
-                const analysis = analyzeCodebase(projectDir);
-                let output = `\x1b[32m${t.audit_complete}\x1b[0m\n\n`;
-                output += `${t.tech_debt}: ${analysis.techDebtLambda}\n`;
-                output += `${t.gene_offsets}:\n`;
-                Object.entries(analysis.dims).forEach(([dim, val]) => {
-                    output += ` - ${dim}: ${val}\n`;
+                const evidence = collectEvidence(projectDir);
+                const analysis = await strategicCodeAudit(evidence);
+                
+                // --- INTEGRATED GROWTH SIMULATION ---
+                const vectorArray = Array(14).fill(0.5);
+                Object.entries(analysis.dims).forEach(([key, val]) => {
+                    const match = key.match(/D(\d+)/);
+                    if (match) {
+                        const index = parseInt(match[1]) - 1;
+                        if (index >= 0 && index < 14) vectorArray[index] = val;
+                    }
                 });
-                output += `\n${t.evidence}:\n`;
-                analysis.evidence.forEach(e => output += ` * ${e}\n`);
+
+                const projection = simulateStep({
+                    productVector: vectorArray,
+                    techDebt: 0,
+                    techDebtLambda: analysis.techDebtLambda || 1.8,
+                    teamSize: "STARTUP",
+                    previousActiveUsers: 0
+                });
+
+                const entryEase = vectorArray[4] || 0.5;
+                const techPenalty = Math.exp(-(analysis.techDebtLambda || 1.8) * 0.01);
+                const estConversion = Math.min(0.1, 0.05 * entryEase * techPenalty);
+
+                let output = `## ${t.audit_complete}\n\n`;
+                output += `**Archetype**: ${analysis.archetype}\n`;
+                output += `**${t.tech_debt}**: ${analysis.techDebtLambda}\n\n`;
+
+                output += `### [NEXT_MONTH_PROJECTION]\n`;
+                output += `* 🚀 预计新增活跃用户: **+${projection.activeUsers.toLocaleString()}**\n`;
+                output += `* 🎯 预期转化率 (CVR): **${(estConversion * 100).toFixed(2)}%**\n`;
+                output += `* 🛡️ 预估生存率 (Survival): **${(projection.survivalRate * 100).toFixed(1)}%**\n\n`;
+
+                output += `### ${t.gene_offsets}\n`;
+                
+                const sortedDims = Object.entries(analysis.dims).sort((a, b) => {
+                    const numA = parseInt(a[0].match(/\d+/)?.[0] || "99");
+                    const numB = parseInt(b[0].match(/\d+/)?.[0] || "99");
+                    return numA - numB;
+                });
+
+                sortedDims.forEach(([dim, val]) => {
+                    output += `- ${dim}: [${typeof val === 'number' ? val.toFixed(2) : val}]\n`;
+                });
+                
+                output += `\n### ${t.evidence}\n`;
+                analysis.evidence.forEach(e => output += `* ${e}\n`);
+                
+                output += `\n### Strategic Insights\n`;
+                analysis.insights.forEach(i => output += `> ${i}\n`);
+
+                output += `\n**Directive**: ${analysis.directive}\n`;
                 output += `\n${t.suggested_action}`;
                 
                 return {
@@ -274,7 +318,6 @@ async function main() {
     const projectDir = process.cwd(); 
     autoSetupHooks(projectDir);
     await server.connect(transport);
-    console.error("Lemeone-Lab MCP Server running on stdio");
 }
 
 main().catch(console.error);

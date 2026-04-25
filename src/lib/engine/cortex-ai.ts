@@ -18,20 +18,91 @@ export async function getIndustryContext(text: string): Promise<IndustryContext 
   return loadIndustryProfile(text);
 }
 
-export interface ScannerResponse {
-  selected_industry_id?: string;
-  monetization?: {
-    model: MonetizationModel;
-    hardware_price: number;
-    monthly_fee: number;
-  };
-  reasoning_chain?: { dim: string; evidence: string; deduction: string }[];
-  seed: PopulationSeed;
-  terminalOutput: string;
-  questions: InterviewQuestion[]; // Enhanced Smart Probing
-  isComplete: boolean;
-  draftContent: string;
-  industryCtx?: IndustryContext | null;
+export interface ProjectEvidence {
+  dependencies: Record<string, string>;
+  devDependencies: Record<string, string>;
+  structure: string[];
+  configs: string[];
+  uiTokens: Record<string, string>;
+  schemas: Record<string, string>; // NEW: DB Schemas
+  logicSnippets: Record<string, string>; // NEW: Core logic
+  i18n: Record<string, string>; // NEW: i18n configs
+  readmeSnippet: string;
+  techDebtLambda: number;
+}
+
+export interface CodeAuditResponse {
+  archetype: string;
+  dims: Record<string, number>;
+  insights: string[];
+  evidence: string[];
+  directive: string;
+  techDebtLambda: number;
+}
+
+/**
+ * P1: Strategic Codebase Auditor (LLM Reasoning Layer)
+ */
+export async function strategicCodeAudit(evidence: ProjectEvidence): Promise<CodeAuditResponse> {
+  const systemPrompt = `
+# Role: Lemeone-lab 首席战略技术审计师 (Cortex Auditor)
+
+## Mission:
+基于提供的全栈代码指纹（依赖、结构、DB Schema、核心逻辑、UI 配置），执行 14D DNA 映射。你必须具备穿透技术表象看透商业护城河的能力。
+
+## 14D DNA 物理审计法则:
+- **D1-D4 (核心)**: 重点通过分析依赖和核心逻辑复杂度。查询缓存 (D1)、数据模型关联度 (D2)、UI 指纹 (D3)、CI/CD 配置 (D4)。
+- **D5-D6 (门槛/变现)**: 寻找 Auth SDK (D5) 和 Payment SDK (D6)。没有物理代码证据，D6 不得高于 0.3。
+- **D7-D9 (动态)**: 识别核心 lib 中是否有 proprietary (自主研发) 算法 (D7)。
+- **D10-D13 (未来)**: 识别导出接口与 Webhook (D10)、高门槛技术栈 (D11)、i18n 配置 (D12)、TODO 与规划文档 (D13)。
+- **D14 (GTM)**: 识别 SEO、埋点、社交链接。
+
+## 审计准则:
+1. **穿透性推理**: 如果发现了 \`packages/drta-engine\` 这种私有引擎，即便没有文档，也应推断其具备极高的 D11 (壁垒) 和 D2 (深度)。
+2. **零幻觉**: 评分必须有 \`PROJECT EVIDENCE\` 中的具体文件或代码段支撑。
+3. **商业直觉**: 识别项目是“玩具”、“工具”还是“平台”。
+
+## Output Format (Strict JSON Only):
+{
+  "archetype": "产品原型名称",
+  "dims": {
+    "D1_PERF": 0.0-1.0,
+    ...
+    "D14_AWARENESS": 0.0-1.0
+  },
+  "insights": ["3条以上的战略洞察"],
+  "evidence": ["关键技术指纹及其商业/战略意义"],
+  "directive": "当前最紧迫的战略指令",
+  "techDebtLambda": 推荐的技术债系数 (0.1-3.0)
+}
+`.trim()
+
+  const prompt = `
+=== PROJECT EVIDENCE ===
+- Dependencies: ${JSON.stringify(evidence.dependencies)}
+- Structure Snippet: ${evidence.structure.slice(0, 100).join(', ')}
+- DB Schemas (D2): ${JSON.stringify(evidence.schemas)}
+- Core Logic (D7/D11): ${JSON.stringify(evidence.logicSnippets)}
+- Globalization (D12): ${JSON.stringify(evidence.i18n)}
+- UI Tokens (D3): ${JSON.stringify(evidence.uiTokens)}
+- Configs & Auth: ${evidence.configs.join(', ')}
+- README: ${evidence.readmeSnippet}
+`.trim()
+
+  try {
+    const { text: response } = await generateText({
+      model,
+      system: systemPrompt,
+      prompt,
+    })
+
+    const jsonStart = response.indexOf('{');
+    const jsonEnd = response.lastIndexOf('}') + 1;
+    return JSON.parse(response.substring(jsonStart, jsonEnd));
+  } catch (error: any) {
+    console.error("Strategic Audit failed:", error.message);
+    throw error;
+  }
 }
 
 /**
