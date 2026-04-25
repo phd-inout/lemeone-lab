@@ -11,7 +11,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@ai-sdk/google": "^3.0.43",
+    "ai": "^6.0.116",
+    "uuid": "^13.0.0",
+    "tsx": "^4.19.2",
+    "@lemeone/drta-engine": "file:../packages/drta-engine"
   },
   "bin": {
     "lemeone-mcp": "../bin/mcp-loader.js"

@@ -43,9 +43,9 @@ Compatible with **Claude Code**, **Cursor**, **Windsurf**, and **Zed**.
 **Pro Features:**
 - **Real-time Codebase Auditor**: Automatically extracts 14D DNA from your code, dependencies, README, and documentation density.
 - **Zero-Config Git Hook**: Proactively installs a `prepare-commit-msg` hook on startup. Every `git commit` will now feature a **Strategic Gravity Brief**.
-- **Adaptive Language**: Intelligent switching between English and Chinese based on your conversation context.
+- **Adaptive Language**: Intelligent switching between English and Chinese.
 
-**Setup for Claude Code/Desktop:**
+**Setup for Claude Code / Desktop:**
 ```json
 "mcpServers": {
   "lemeonelab": {
