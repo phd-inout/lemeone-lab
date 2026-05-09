@@ -12,6 +12,41 @@ const args = process.argv.slice(2);
  * Handle "skills" command
  */
 function handleSkills(subCommand, targetUrl) {
+  const geminiSkillsDir = path.join(os.homedir(), '.gemini', 'skills');
+  const internalSkillPath = path.join(appDir, 'skills', 'business-intelligence');
+  const targetSkillPath = path.join(geminiSkillsDir, 'business-intelligence');
+
+  if (subCommand === 'install' || !subCommand) {
+    console.log(`\n🧠 Installing Lemeone Strategic Skill...`);
+    
+    try {
+      if (!fs.existsSync(geminiSkillsDir)) {
+        fs.mkdirSync(geminiSkillsDir, { recursive: true });
+      }
+
+      // Recursive copy function
+      const copyRecursiveSync = function(src, dest) {
+        if (!fs.existsSync(src)) return;
+        const stats = fs.statSync(src);
+        if (stats.isDirectory()) {
+          if (!fs.existsSync(dest)) fs.mkdirSync(dest);
+          fs.readdirSync(src).forEach(childItemName => {
+            copyRecursiveSync(path.join(src, childItemName), path.join(dest, childItemName));
+          });
+        } else {
+          fs.copyFileSync(src, dest);
+        }
+      };
+
+      copyRecursiveSync(internalSkillPath, targetSkillPath);
+      console.log(`✅ Skill "business-intelligence" installed to global library.`);
+      console.log(`✨ You can now run: activate_skill business-intelligence\n`);
+    } catch (e) {
+      console.error(`❌ Failed to install skill: ${e.message}`);
+    }
+    process.exit(0);
+  }
+
   if (subCommand === 'add' && targetUrl) {
     console.log(`\n📦 Adding skill from: ${targetUrl}`);
     const skillsDir = path.join(appDir, 'skills');
@@ -20,7 +55,6 @@ function handleSkills(subCommand, targetUrl) {
       fs.mkdirSync(skillsDir);
     }
 
-    // Extract skill name from URL
     const skillName = targetUrl.split('/').pop().replace('.git', '');
     const destPath = path.join(skillsDir, skillName);
 
@@ -44,7 +78,8 @@ function handleSkills(subCommand, targetUrl) {
     process.exit(0);
   } else {
     console.log('\nUsage:');
-    console.log('  npx lemeone-skill add <github-url>');
+    console.log('  npx lemeone-skill                  (Install bundled 14D skill)');
+    console.log('  npx lemeone-skill add <github-url> (Add external skill)');
     process.exit(1);
   }
 }
@@ -81,28 +116,19 @@ const isSkillCommand = path.basename(process.argv[1]) === 'lemeone-skill' || arg
 if (isSkillCommand) {
   const subCommand = args[0] === 'skills' ? args[1] : args[0];
   const targetUrl = args[0] === 'skills' ? args[2] : args[1];
-
-  if (subCommand === 'add' && targetUrl) {
-    handleSkills(subCommand, targetUrl);
-  } else {
-    console.log('\nUsage:');
-    console.log('  npx lemeone-skill add <github-url>');
-    process.exit(1);
-  }
+  handleSkills(subCommand, targetUrl);
 } else if (args[0] === 'hook') {
   handleHook();
 } else {
   // Default: Start Server
   console.log('🚀 Starting LemeoneLab 2.0 Local Engine...');
 
-  // 1. Check GOOGLE_GENERATIVE_AI_API_KEY
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     console.log('\n⚠️  WARNING: GOOGLE_GENERATIVE_AI_API_KEY is not set in your environment.');
     console.log('   The simulation requires Google Gemini Flash to generate events.');
     console.log('   Please export GOOGLE_GENERATIVE_AI_API_KEY="your-key" and run again.\n');
   }
 
-  // 2. Initialize Database
   console.log('📦 Initializing local SQLite database...');
   try {
     execSync('npx prisma db push', { cwd: appDir, stdio: 'inherit' });
@@ -111,11 +137,9 @@ if (isSkillCommand) {
     process.exit(1);
   }
 
-  // 3. Start Next.js Server
   console.log('🌐 Starting local server...');
   const server = spawn('npm', ['run', 'dev'], { cwd: appDir, stdio: 'inherit' });
 
-  // 4. Open browser after a short delay
   setTimeout(() => {
     const url = 'http://localhost:3000';
     console.log(`\n✨ LemeoneLab is running at ${url}\n`);

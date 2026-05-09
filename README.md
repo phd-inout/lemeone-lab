@@ -28,11 +28,11 @@ npx prisma db push && npm run dev
 ```
 
 ### Option B: Strategic Skill (Native & Fast)
-Standalone installation of AI reasoning skills for Gemini CLI. No dashboard or local environment setup required.
+Standalone installation of AI reasoning skills for Gemini CLI. No environment setup required.
 
 ```bash
-# Install the official 14D Business Intelligence skill
-npx -p lemeone-sandbox lemeone-skill add https://github.com/phd-inout/business-intelligence-skill
+# Install the built-in 14D Business Intelligence skill
+npx -p lemeone-sandbox lemeone-skill
 ```
 
 ---
