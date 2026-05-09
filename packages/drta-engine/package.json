@@ -1,11 +1,11 @@
 {
-  "name": "@lemeone/drta-engine",
+  "name": "drta-gravity-engine",
   "version": "2.5.0",
   "description": "Deep Resonance Transformation Algorithm (DRTA) v2.5 for business simulation.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --minify --clean",
+    "build": "tsup src/index.ts --format cjs,esm --minify --clean && tsc",
     "obfuscate": "javascript-obfuscator dist/index.js --output dist/index.obfuscated.js"
   },
   "keywords": [

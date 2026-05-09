@@ -144,3 +144,23 @@ export interface AuditReport {
   dominantDNA: string
   backlogDraft: string
 }
+
+export interface ScannerResponse {
+  reasoning_chain?: {
+    dim: string
+    evidence: string
+    deduction: string
+  }[]
+  seed: PopulationSeed
+  terminalOutput?: string
+  questions?: InterviewQuestion[]
+  selected_industry_id?: string
+  monetization?: {
+    model: string
+    hardware_price: number
+    monthly_fee: number
+  }
+  industryCtx?: any
+  isComplete?: boolean
+  draftContent?: string
+}

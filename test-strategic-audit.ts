@@ -15,7 +15,7 @@ async function testAudit() {
     console.log("D6 (Monetize):", analysis.dims.D6_MONETIZE);
     console.log("Directive:", analysis.directive);
     console.log("\nEvidence Chain:");
-    analysis.evidence.forEach(e => console.log(" *", e));
+    analysis.evidence.forEach((e: string) => console.log(" *", e));
   } catch (e) {
     console.error("Audit failed:", e);
   }

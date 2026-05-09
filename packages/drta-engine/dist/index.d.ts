@@ -1,4 +1,24 @@
-export type Vector14D = [number, number, number, number, number, number, number, number, number, number, number, number, number, number];
+/**
+ * DRTA Engine v2.5
+ * Deep Resonance Transformation Algorithm
+ * (c) 2026 LemeoneLab
+ */
+export type Vector14D = [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number
+];
 export interface AgentDNA {
     id: string;
     vector: Vector14D;
@@ -14,13 +34,25 @@ export interface SimulationMetrics {
     mrr: number;
     survivalRate: number;
 }
+/**
+ * Core Physics: Cosine Similarity with Weights
+ */
 export declare function calculateCosineSimilarity(v1: Vector14D, v2: Vector14D, weights?: Vector14D): number;
+/**
+ * Vector Collision: Update Agent Resonance
+ */
 export declare function runCollision(productVector: Vector14D, techDebt: number, population: AgentDNA[], previousPaidUsers: number, weights?: Vector14D): AgentDNA[];
+/**
+ * Emergent Metrics Calculation
+ */
 export declare function calculateMetrics(population: AgentDNA[], productVector: Vector14D, techDebt: number, teamSize: string, previousActiveUsers?: number, monetization?: {
     model: MonetizationModel;
     hardwarePrice: number;
     monthlyFee: number;
 }): SimulationMetrics;
+/**
+ * Generate Initial Agent Population
+ */
 export declare function generatePopulation(seed: {
     mean: Vector14D;
     std: Vector14D;

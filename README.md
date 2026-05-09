@@ -34,7 +34,7 @@ For terminal-first power users. Performs 14D audits and manages industry skills 
 npx skills add https://github.com/phd-inout/business-intelligence-skill
 
 # Start the dashboard and engine
-npx lemeonelab
+npx lemeone-sandbox
 ```
 
 ### Option C: MCP Server (Strategic Edition)
@@ -48,9 +48,9 @@ Compatible with **Claude Code**, **Cursor**, **Windsurf**, and **Zed**.
 **Setup for Claude Code / Desktop:**
 ```json
 "mcpServers": {
-  "lemeonelab": {
+  "lemeone": {
     "command": "npx",
-    "args": ["-y", "-p", "lemeonelab", "lemeone-mcp"]
+    "args": ["-y", "lemeone-sandbox", "lemeone-mcp"]
   }
 }
 ```

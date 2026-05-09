@@ -1,6 +1,6 @@
 "use server";
 
-import { loadIndustryProfile, IndustryContext, getAllIndustries, matchIndustry } from './industry-loader.ts'
+import { loadIndustryProfile, IndustryContext, getAllIndustries, matchIndustry } from './industry-loader'
 
 import fs from 'fs'
 import path from 'path'
@@ -11,8 +11,9 @@ import {
   PopulationSeed,
   SandboxState,
   InterviewQuestion,
-  MonetizationModel
-} from './types.ts'
+  MonetizationModel,
+  ScannerResponse
+} from './types'
 
 export async function getIndustryContext(text: string): Promise<IndustryContext | null> {
   return loadIndustryProfile(text);

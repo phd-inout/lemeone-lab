@@ -3,15 +3,15 @@ import {
   AgentDNA,
   SandboxState,
   PopulationSeed,
-} from './types.ts'
+} from './types'
 import { v4 as uuidv4 } from 'uuid'
-import * as drta from '@lemeone/drta-engine'
+import * as drta from 'drta-gravity-engine'
 
 /**
  * System 1: DRTA Gravity Engine
  * Optimized DRTA 2.5: 14-Dimensional Decoupled Funnel
  * 
- * Note: Core physics logic has been moved to @lemeone/drta-engine 
+ * Note: Core physics logic has been moved to drta-gravity-engine 
  * to ensure mathematical consistency across platforms.
  */
 

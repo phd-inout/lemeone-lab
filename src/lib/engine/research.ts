@@ -6,8 +6,8 @@
  * - Weather is short-term perturbation bounded by ±0.2 and constrained by Gravity.
  */
 
-import { IndustryContext } from './industry-loader.ts'
-import { DIM } from './types.ts'
+import { IndustryContext } from './industry-loader'
+import { DIM } from './types'
 
 // Dimension name -> index mapping for perturbation application
 const DIM_NAME_TO_INDEX: Record<string, number> = {

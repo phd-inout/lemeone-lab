@@ -214,13 +214,15 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const history = [`User: ${seedText}`]
                 const { seed, terminalOutput, isComplete, draftContent, questions } = await scanSeed(history, '')
                 
-                terminalOutput.split('\n').forEach(line => {
-                    get().pushLine(line)
-                })
+                if (terminalOutput) {
+                    terminalOutput.split('\n').forEach((line: string) => {
+                        get().pushLine(line)
+                    })
+                }
 
                 if (!isComplete) {
-                    set({ 
-                        isInterviewing: true, 
+                    set({
+                        isInterviewing: true,
                         activeQuestions: questions || [],
                         interviewHistory: history,
                         draftSpec: draftContent || ''
@@ -230,10 +232,11 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 // Phase 4: Show 14D Scoring Summary
                 get().pushLine(`\x1b[32m[📊 SCORING] 14D 商业基因向量已生成:\x1b[0m`)
-                get().pushLine(`\x1b[90m   核心爽点 D1-D4 : [${seed.mean.slice(0,4).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
-                get().pushLine(`\x1b[90m   获客血槽 D5-D6 : [${seed.mean.slice(4,6).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
-                get().pushLine(`\x1b[90m   市场引擎 D7-D9 : [${seed.mean.slice(6,9).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
-                get().pushLine(`\x1b[90m   护城壁垒 D10-D13: [${seed.mean.slice(9,13).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   核心爽点 D1-D4 : [${seed.mean.slice(0,4).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   获客血槽 D5-D6 : [${seed.mean.slice(4,6).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   市场引擎 D7-D9 : [${seed.mean.slice(6,9).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   护城壁垒 D10-D13: [${seed.mean.slice(9,13).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+
                 get().pushLine(`\x1b[90m   认知半径 D14    : [${seed.mean[13]?.toFixed(2) ?? 'N/A'}]\x1b[0m`)
 
                 // Phase 5: Collision & Initialize
@@ -299,12 +302,14 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 const { seed, terminalOutput, isComplete, draftContent, industryCtx, questions } = await scanSeed(newHistory, draftSpec)
                 
-                const aiResponse = terminalOutput.split('\n')
-                newHistory.push(`AI: ${aiResponse.join(' ')}`)
-                
-                aiResponse.forEach(line => {
-                    get().pushLine(line)
-                })
+                if (terminalOutput) {
+                    const aiResponse = terminalOutput.split('\n')
+                    newHistory.push(`AI: ${aiResponse.join(' ')}`)
+                    
+                    aiResponse.forEach((line: string) => {
+                        get().pushLine(line)
+                    })
+                }
 
                 if (!isComplete) {
                     set({ 
@@ -317,10 +322,10 @@ export const useLemeoneStore = create<LemeoneStore>()(
 
                 // Show 14D Scoring Summary
                 get().pushLine(`\x1b[32m[📊 SCORING] 14D 商业基因向量已生成:\x1b[0m`)
-                get().pushLine(`\x1b[90m   核心爽点 D1-D4 : [${seed.mean.slice(0,4).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
-                get().pushLine(`\x1b[90m   获客血槽 D5-D6 : [${seed.mean.slice(4,6).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
-                get().pushLine(`\x1b[90m   市场引擎 D7-D9 : [${seed.mean.slice(6,9).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
-                get().pushLine(`\x1b[90m   护城壁垒 D10-D13: [${seed.mean.slice(9,13).map(v=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   核心爽点 D1-D4 : [${seed.mean.slice(0,4).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   获客血槽 D5-D6 : [${seed.mean.slice(4,6).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   市场引擎 D7-D9 : [${seed.mean.slice(6,9).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
+                get().pushLine(`\x1b[90m   护城壁垒 D10-D13: [${seed.mean.slice(9,13).map((v: number)=>v.toFixed(2)).join(', ')}]\x1b[0m`)
                 get().pushLine(`\x1b[90m   认知半径 D14    : [${seed.mean[13]?.toFixed(2) ?? 'N/A'}]\x1b[0m`)
 
                 // Build Simulation

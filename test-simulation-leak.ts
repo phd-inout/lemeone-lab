@@ -17,6 +17,7 @@ async function testSimulationLeak() {
         epoch: 0,
         teamSize: 'STARTUP',
         techDebt: 0,
+        techDebtLambda: 1.8,
         currentStage: 'SEED',
         seedText: "Initial Test",
         userARPU: 45,
