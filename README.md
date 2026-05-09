@@ -27,27 +27,15 @@ export GOOGLE_GENERATIVE_AI_API_KEY="your_key"
 npx prisma db push && npm run dev
 ```
 
-### Option B: Lemeone CLI (Native & Fast)
-For terminal-first power users. Performs 14D audits and manages industry skills directly from the command line.
+### Option B: Strategic Skill (Native & Fast)
+Standalone installation of AI reasoning skills for Gemini CLI. No dashboard or local environment setup required.
 
-#### 1. Start the Business Gravity Sandbox
-Launch the local web dashboard and the mathematical engine:
 ```bash
-npx lemeone-sandbox
-```
-
-#### 2. Install & Manage Strategic Skills
-**Note:** Use the dedicated `lemeone-skill` command for all skill-related operations.
-```bash
-# To install a skill (e.g., Business Intelligence)
+# Install the official 14D Business Intelligence skill
 npx -p lemeone-sandbox lemeone-skill add https://github.com/phd-inout/business-intelligence-skill
 ```
 
-#### 3. Strategic Git Hook
-Install the audit hook to your local repository:
-```bash
-npx lemeone-sandbox hook install
-```
+---
 
 ### Option C: MCP Server (Strategic Edition)
 Compatible with **Claude Code**, **Cursor**, **Windsurf**, and **Zed**. 
