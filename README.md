@@ -32,6 +32,9 @@ For terminal-first power users. Performs 14D audits and manages industry skills 
 ```bash
 # Start the dashboard and engine directly via npx
 npx lemeone-sandbox
+
+# Manage strategic skills
+npx lemeone-skill add https://github.com/phd-inout/business-intelligence-skill
 ```
 
 ### Option C: MCP Server (Strategic Edition)

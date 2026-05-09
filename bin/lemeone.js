@@ -11,10 +11,7 @@ const args = process.argv.slice(2);
 /**
  * Handle "skills" command
  */
-function handleSkills() {
-  const subCommand = args[1];
-  const targetUrl = args[2];
-
+function handleSkills(subCommand, targetUrl) {
   if (subCommand === 'add' && targetUrl) {
     console.log(`\n📦 Adding skill from: ${targetUrl}`);
     const skillsDir = path.join(appDir, 'skills');
@@ -107,6 +104,22 @@ if (args[0] === 'skills') {
   // 3. Start Next.js Server
   console.log('🌐 Starting local server...');
   const server = spawn('npm', ['run', 'dev'], { cwd: appDir, stdio: 'inherit' });
+
+  // 4. Open browser after a short delay
+  setTimeout(() => {
+    const url = 'http://localhost:3000';
+    console.log(`\n✨ LemeoneLab is running at ${url}\n`);
+    const openCmd = os.platform() === 'win32' ? 'start' : os.platform() === 'darwin' ? 'open' : 'xdg-open';
+    try {
+      execSync(`${openCmd} ${url}`);
+    } catch (e) {}
+  }, 3000);
+
+  server.on('close', (code) => {
+    process.exit(code);
+  });
+}
+: appDir, stdio: 'inherit' });
 
   // 4. Open browser after a short delay
   setTimeout(() => {
