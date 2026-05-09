@@ -58,6 +58,24 @@ Add this to your `mcpServers` configuration:
 
 ---
 
+## 🧠 Business Intelligence Skill (Local Pro)
+
+The `business-intelligence` skill is the "Cognitive Core" of LemeoneLab. It enables deep strategic reasoning without relying solely on external API calls for core physics.
+
+**Key Capabilities:**
+- **Executable 14D Mapping**: Translates raw descriptions into mathematical vectors using local industry blueprints.
+- **Integrated DRTA Engine**: Runs 100,000-agent simulations locally via `scripts/simulate.js`.
+- **Closed-Loop Auditing**: DNA Mapping -> Physics Simulation -> Strategic Synthesis.
+
+**To activate:**
+```bash
+activate_skill business-intelligence
+```
+
+---
+
+---
+
 ## 🔬 Validation Benchmarks
 
 | Case Study | Validation Goal | Simulation (Conv. Rate) | Ground Truth |
