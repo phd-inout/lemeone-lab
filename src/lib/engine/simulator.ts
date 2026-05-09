@@ -3,7 +3,7 @@ import {
   AgentDNA,
   SandboxState,
   PopulationSeed,
-} from './types'
+} from './types.ts'
 import { v4 as uuidv4 } from 'uuid'
 import * as drta from '@lemeone/drta-engine'
 

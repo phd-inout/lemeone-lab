@@ -12,7 +12,7 @@ import {
   SandboxState,
   InterviewQuestion,
   MonetizationModel
-} from './types'
+} from './types.ts'
 
 export async function getIndustryContext(text: string): Promise<IndustryContext | null> {
   return loadIndustryProfile(text);
