@@ -29,12 +29,27 @@ npx prisma db push && npm run dev
 
 ### Option B: Lemeone CLI (Native & Fast)
 For terminal-first power users. Performs 14D audits and manages industry skills directly from the command line.
-```bash
-# Start the dashboard and engine directly via npx
-npx lemeone-sandbox
 
-# Manage strategic skills
-npx lemeone-skill add https://github.com/phd-inout/business-intelligence-skill
+#### 1. Start the Business Gravity Sandbox
+Launch the local web dashboard and the mathematical engine:
+```bash
+npx lemeone-sandbox
+```
+
+#### 2. Strategic Skill Management
+Manage your 14D industry blueprints and AI reasoning skills:
+```bash
+# Add a new skill cluster from GitHub
+npx -p lemeone-sandbox lemeone-skill add <github-url>
+
+# Example: Add the official Business Intelligence skill
+npx -p lemeone-sandbox lemeone-skill add https://github.com/phd-inout/business-intelligence-skill
+```
+
+#### 3. Strategic Git Hook
+Install the audit hook to your local repository:
+```bash
+npx lemeone-sandbox hook install
 ```
 
 ### Option C: MCP Server (Strategic Edition)
