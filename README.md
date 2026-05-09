@@ -36,13 +36,10 @@ Launch the local web dashboard and the mathematical engine:
 npx lemeone-sandbox
 ```
 
-#### 2. Strategic Skill Management
-Manage your 14D industry blueprints and AI reasoning skills:
+#### 2. Install & Manage Strategic Skills
+**Note:** Use the dedicated `lemeone-skill` command for all skill-related operations.
 ```bash
-# Add a new skill cluster from GitHub
-npx -p lemeone-sandbox lemeone-skill add <github-url>
-
-# Example: Add the official Business Intelligence skill
+# To install a skill (e.g., Business Intelligence)
 npx -p lemeone-sandbox lemeone-skill add https://github.com/phd-inout/business-intelligence-skill
 ```
 
