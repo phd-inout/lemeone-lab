@@ -30,10 +30,7 @@ npx prisma db push && npm run dev
 ### Option B: Lemeone CLI (Native & Fast)
 For terminal-first power users. Performs 14D audits and manages industry skills directly from the command line.
 ```bash
-# Add a new skill cluster from GitHub
-npx skills add https://github.com/phd-inout/business-intelligence-skill
-
-# Start the dashboard and engine
+# Start the dashboard and engine directly via npx
 npx lemeone-sandbox
 ```
 
@@ -41,16 +38,20 @@ npx lemeone-sandbox
 Compatible with **Claude Code**, **Cursor**, **Windsurf**, and **Zed**. 
 
 **Pro Features:**
-- **Real-time Codebase Auditor**: Automatically extracts 14D DNA from your code, dependencies, README, and documentation density.
-- **Zero-Config Git Hook**: Proactively installs a `prepare-commit-msg` hook on startup. Every `git commit` will now feature a **Strategic Gravity Brief**.
+- **Real-time Codebase Auditor**: Automatically extracts 14D DNA from your code, dependencies, and documentation density.
+- **Zero-Config Git Hook**: Proactively installs a `prepare-commit-msg` hook on startup.
 - **Adaptive Language**: Intelligent switching between English and Chinese.
 
-**Setup for Claude Code / Desktop:**
+**Setup for Claude Desktop / Cursor:**
+Add this to your `mcpServers` configuration:
 ```json
 "mcpServers": {
   "lemeone": {
     "command": "npx",
-    "args": ["-y", "lemeone-sandbox", "lemeone-mcp"]
+    "args": ["-y", "lemeone-sandbox", "lemeone-mcp"],
+    "env": {
+      "GOOGLE_GENERATIVE_AI_API_KEY": "YOUR_API_KEY_HERE"
+    }
   }
 }
 ```
