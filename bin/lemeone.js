@@ -44,8 +44,7 @@ function handleSkills(subCommand, targetUrl) {
     process.exit(0);
   } else {
     console.log('\nUsage:');
-    console.log('  npx lemeonelab skills add <github-url>');
-    console.log('  npx skills add <github-url>');
+    console.log('  npx lemeone-skill add <github-url>');
     process.exit(1);
   }
 }
@@ -71,14 +70,25 @@ function handleHook() {
     process.exit(0);
   } else {
     console.log('\nUsage:');
-    console.log('  npx lemeonelab hook install');
+    console.log('  npx lemeone-sandbox hook install');
     process.exit(1);
   }
 }
 
 // Route commands
-if (args[0] === 'skills') {
-  handleSkills();
+const isSkillCommand = path.basename(process.argv[1]) === 'lemeone-skill' || args[0] === 'skills';
+
+if (isSkillCommand) {
+  const subCommand = args[0] === 'skills' ? args[1] : args[0];
+  const targetUrl = args[0] === 'skills' ? args[2] : args[1];
+
+  if (subCommand === 'add' && targetUrl) {
+    handleSkills(subCommand, targetUrl);
+  } else {
+    console.log('\nUsage:');
+    console.log('  npx lemeone-skill add <github-url>');
+    process.exit(1);
+  }
 } else if (args[0] === 'hook') {
   handleHook();
 } else {
@@ -104,22 +114,6 @@ if (args[0] === 'skills') {
   // 3. Start Next.js Server
   console.log('🌐 Starting local server...');
   const server = spawn('npm', ['run', 'dev'], { cwd: appDir, stdio: 'inherit' });
-
-  // 4. Open browser after a short delay
-  setTimeout(() => {
-    const url = 'http://localhost:3000';
-    console.log(`\n✨ LemeoneLab is running at ${url}\n`);
-    const openCmd = os.platform() === 'win32' ? 'start' : os.platform() === 'darwin' ? 'open' : 'xdg-open';
-    try {
-      execSync(`${openCmd} ${url}`);
-    } catch (e) {}
-  }, 3000);
-
-  server.on('close', (code) => {
-    process.exit(code);
-  });
-}
-: appDir, stdio: 'inherit' });
 
   // 4. Open browser after a short delay
   setTimeout(() => {
