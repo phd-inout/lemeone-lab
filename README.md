@@ -47,7 +47,29 @@ Compatible with **Claude Code**, **Cursor**, **Windsurf**, and **Zed**. Directs 
 >
 > **You MUST use the `--package` parameter flag** to instruct `npx` to locate the correct `lemeone-mcp` binary in the global registry:
 
-#### Correct Cursor / Claude Desktop `mcp.json` Configuration:
+#### Cursor / Claude Desktop `mcp.json` Configurations:
+
+Choose **one** of the following configurations based on your needs:
+
+##### Configuration A: Pure Local & Offline (No API Key Required - 极简纯本地版)
+*Best for pure mathematical simulations (growth steps, industry rules, Git commit briefs).*
+
+```json
+"mcpServers": {
+  "lemeone": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "--package",
+      "lemeone-sandbox",
+      "lemeone-mcp"
+    ]
+  }
+}
+```
+
+##### Configuration B: Full AI Strategic Audits (Requires Google Gemini Key - 完整 AI 审计版)
+*Enables the `audit_local_codebase` tool to automatically generate strategic briefs using Gemini Flash.*
 
 ```json
 "mcpServers": {
@@ -65,6 +87,21 @@ Compatible with **Claude Code**, **Cursor**, **Windsurf**, and **Zed**. Directs 
   }
 }
 ```
+
+### 🔌 Offline Capability & API Key Requirement (离线支持与 API 密钥说明)
+
+> [!NOTE]
+> **GOOGLE_GENERATIVE_AI_API_KEY is OPTIONAL (可选配置)**
+> You **do not need** an API Key to install, start, or run the core mathematical simulation engine of LemeoneLab. 
+> 
+> * **100% Offline Ready (100% 离线支持)**: 
+>   * `simulate_market_growth` (High-fidelity Monte Carlo 10k particle collision)
+>   * `get_industry_knowledge` (Retrieve structural gravity constraints)
+>   * `audit_business_dna` (Parse business pitches to match standard parameters)
+>   * `setup_git_strategy_hook` (Install repository commit hooks)
+>   These tools run locally on the standalone compiled **DRTA Swarm 2.5** physics engine and do not require internet access or API Keys.
+> * **When is the Key Required? (何时需要密钥？)**:
+>   * Only the `audit_local_codebase` tool (which automatically crawls your codebase to generate strategic AI audit briefs using Gemini Flash) requires the API Key.
 
 ---
 
