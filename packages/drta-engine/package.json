@@ -1,6 +1,6 @@
 {
   "name": "drta-gravity-engine",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Deep Resonance Transformation Algorithm (DRTA) v2.5 for business simulation.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
