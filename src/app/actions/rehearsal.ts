@@ -10,17 +10,34 @@ import { prisma } from '@/lib/prisma'
 export async function createRehearsal(sessionId: string, projectId: string, state: SandboxState): Promise<string> {
     try {
         const localUserId = 'local-user';
+        
+        // Pack core state metadata into assets JSON to preserve state attributes across reloads without schema changes
+        const packedAssets = {
+            ...state.assets,
+            __metadata: {
+                teamSize: state.teamSize,
+                userARPU: state.userARPU,
+                industryId: state.industryId,
+                industryName: state.industryName,
+                industryBaselineARPU: state.industryBaselineARPU,
+                monetization: state.monetization,
+                seedText: state.seedText,
+                techDebtLambda: state.techDebtLambda,
+            }
+        };
+
         const rehearsal = await prisma.rehearsal.create({
             data: {
                 sessionId,
                 userId: localUserId,
                 projectId,
                 productVector: JSON.stringify(state.productVector),
-                assets: JSON.stringify(state.assets),
+                assets: JSON.stringify(packedAssets),
                 cash: state.metrics.earningPotential,
                 techDebt: state.techDebt,
                 weekNumber: state.epoch,
                 currentStage: state.currentStage,
+                historyJson: JSON.stringify(state.history || []),
                 isFailed: false
             }
         });
@@ -38,15 +55,30 @@ export async function syncRehearsal(rehearsalId: string, state: SandboxState): P
     if (!rehearsalId) return;
 
     try {
+        const packedAssets = {
+            ...state.assets,
+            __metadata: {
+                teamSize: state.teamSize,
+                userARPU: state.userARPU,
+                industryId: state.industryId,
+                industryName: state.industryName,
+                industryBaselineARPU: state.industryBaselineARPU,
+                monetization: state.monetization,
+                seedText: state.seedText,
+                techDebtLambda: state.techDebtLambda,
+            }
+        };
+
         await prisma.rehearsal.update({
             where: { id: rehearsalId },
             data: {
                 productVector: JSON.stringify(state.productVector),
-                assets: JSON.stringify(state.assets),
+                assets: JSON.stringify(packedAssets),
                 cash: state.metrics.earningPotential,
                 techDebt: state.techDebt,
                 weekNumber: state.epoch,
                 currentStage: state.currentStage,
+                historyJson: JSON.stringify(state.history || []),
             }
         });
     } catch (e) {

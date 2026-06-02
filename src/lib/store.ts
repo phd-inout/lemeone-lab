@@ -122,17 +122,70 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     const project = get().projectsList.find(p => p.id === projectId);
                     get().pushLine(`\x1b[32m[PROJECT]\x1b[0m 切换至项目: ${project?.name || projectId}`);
                     
-                    set({
-                        activeProjectId: projectId,
-                        sandboxState: null,
-                        terminalLines: [...get().terminalLines],
-                        isInterviewing: false,
-                        activeQuestions: [],
-                        draftSpec: ''
-                    });
-                    
                     if (rehearsalData) {
-                        get().pushLine(`\x1b[90m[SYSTEM]\x1b[0m 发现存档的商业侧视数据。当前暂不自动恢复全量 10000 智能体快照。请重新 scan。`);
+                        get().pushLine(`\x1b[32m[SYSTEM]\x1b[0m 成功发现存档数据，正在还原 10k 智能体粒子群...`);
+                        
+                        // Hydrate loaded data
+                        const limits = TIER_LIMITS[get().userTier];
+                        const seed = {
+                            mean: rehearsalData.productVector as Vector14D,
+                            std: Array(14).fill(0.1) as Vector14D,
+                            weights: Array(14).fill(1.0) as Vector14D,
+                            outliers: []
+                        };
+                        const restoredPopulation = generatePopulation(seed, limits.maxAgents);
+                        const agents = await runCollision(rehearsalData.productVector, rehearsalData.techDebt, restoredPopulation, rehearsalData.metrics.earningPotential);
+                        
+                        const restoredState: SandboxState = {
+                            id: rehearsalData.id,
+                            projectId,
+                            tier: get().userTier,
+                            epoch: rehearsalData.epoch,
+                            teamSize: rehearsalData.teamSize || 'STARTUP',
+                            techDebt: rehearsalData.techDebt,
+                            techDebtLambda: rehearsalData.techDebtLambda || 0.5,
+                            currentStage: rehearsalData.currentStage,
+                            seedText: rehearsalData.seedText || 'Restored Project',
+                            userARPU: rehearsalData.userARPU || 45,
+                            industryId: rehearsalData.industryId || null,
+                            industryName: rehearsalData.industryName || null,
+                            industryBaselineARPU: rehearsalData.industryBaselineARPU || 45,
+                            monetization: rehearsalData.monetization || {
+                                model: 'SUBSCRIPTION',
+                                hardwarePrice: 0,
+                                monthlyFee: rehearsalData.userARPU || 45
+                            },
+                            productVector: rehearsalData.productVector,
+                            agents,
+                            metrics: calculateMetrics(agents, rehearsalData.productVector, rehearsalData.techDebt, rehearsalData.teamSize || 'STARTUP', rehearsalData.metrics.earningPotential, rehearsalData.monetization),
+                            assets: rehearsalData.assets,
+                            history: rehearsalData.history || [{
+                                epoch: rehearsalData.epoch,
+                                users: rehearsalData.metrics.earningPotential,
+                                resonance: 0.5,
+                                survival: 0.8,
+                                conversion: 0.05,
+                                mrr: rehearsalData.metrics.earningPotential * (rehearsalData.userARPU || 45)
+                            }]
+                        };
+                        
+                        set({
+                            activeProjectId: projectId,
+                            sandboxState: restoredState,
+                            isInterviewing: false,
+                            activeQuestions: [],
+                            draftSpec: ''
+                        });
+                        get().pushLine(`\x1b[32m[✓ LOADED] 项目已成功恢复至 Epoch T+${restoredState.epoch}\x1b[0m`);
+                    } else {
+                        set({
+                            activeProjectId: projectId,
+                            sandboxState: null,
+                            isInterviewing: false,
+                            activeQuestions: [],
+                            draftSpec: ''
+                        });
+                        get().pushLine(`\x1b[33m[SYSTEM]\x1b[0m 该项目下没有历史模拟存档，请运行 \x1b[36mscan <需求描述>\x1b[0m 开启新一局模拟。`);
                     }
                 } catch (e) {
                     get().pushLine(`\x1b[31m[ERR]\x1b[0m 切换项目失败`);
@@ -289,6 +342,15 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     }]
                 }
 
+                // Persist the initialized rehearsal to database asynchronously
+                try {
+                    const { createRehearsal } = await import('@/app/actions/rehearsal');
+                    const rehearsalId = await createRehearsal(uuidv4(), get().activeProjectId!, initialState);
+                    initialState.id = rehearsalId; // Bind DB ID
+                } catch (dbErr) {
+                    console.error("[DB] Failed to persist initial rehearsal:", dbErr);
+                }
+
                 set({ sandboxState: initialState, isRunning: true, isInterviewing: false })
                 get().pushLine(`\x1b[32m\x1b[1m[✓ READY] 重力沙盒已就绪 (T+0)\x1b[0m — 输入 \x1b[36mdev\x1b[0m 推进周期或先设定价格`)
                 get().pushLine(`\x1b[33m[💰 PRICING] 行业建议 ARPU: $${initialState.industryBaselineARPU}/月。输入 \x1b[36mprice <金额>\x1b[33m 设定你的客单价，或直接 dev 保持默认。\x1b[0m`)
@@ -387,6 +449,15 @@ export const useLemeoneStore = create<LemeoneStore>()(
                     }]
                 }
 
+                // Persist the initialized rehearsal to database asynchronously
+                try {
+                    const { createRehearsal } = await import('@/app/actions/rehearsal');
+                    const rehearsalId = await createRehearsal(uuidv4(), get().activeProjectId!, initialState);
+                    initialState.id = rehearsalId; // Bind DB ID
+                } catch (dbErr) {
+                    console.error("[DB] Failed to persist initial rehearsal:", dbErr);
+                }
+
                 set({ 
                     sandboxState: initialState, 
                     isRunning: true, 
@@ -401,14 +472,41 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const s = get().sandboxState
                 if (!s) return
 
-                const arpu = s.userARPU
-                const nextState = await stepSimulation(s)
+                // --- [CRITICAL FIX] Dynamic Agent Re-hydration Layer ---
+                let currentAgents = s.agents;
+                if (!currentAgents || currentAgents.length === 0) {
+                    const tier = s.tier || get().userTier;
+                    const limits = TIER_LIMITS[tier];
+                    const seed = {
+                        mean: s.productVector,
+                        std: Array(14).fill(0.1) as Vector14D, // Restore with standard deviation baseline
+                        weights: Array(14).fill(1.0) as Vector14D,
+                        outliers: []
+                    };
+                    const restoredPopulation = generatePopulation(seed, limits.maxAgents);
+                    currentAgents = runCollision(s.productVector, s.techDebt, restoredPopulation, s.metrics.activePaidUserCount);
+                }
+
+                const activeState = {
+                    ...s,
+                    agents: currentAgents
+                };
+
+                const arpu = activeState.userARPU
+                const nextState = await stepSimulation(activeState)
                 
                 const sRate = nextState.metrics.survivalRate
-                const nextJournal = s.assets.journal + `\n## [EPOCH T+${nextState.epoch}]\n- **活跃用户**: ${nextState.metrics.activePaidUserCount.toLocaleString()}\n- **付费用户**: ${nextState.metrics.earningPotential.toLocaleString()}\n- **MRR**: $${nextState.metrics.mrr.toLocaleString()}\n- **生存几率**: ${(sRate * 100).toFixed(1)}%\n- **技术债**: ${nextState.techDebt.toFixed(1)}%\n`
+                const nextJournal = activeState.assets.journal + `\n## [EPOCH T+${nextState.epoch}]\n- **活跃用户**: ${nextState.metrics.activePaidUserCount.toLocaleString()}\n- **付费用户**: ${nextState.metrics.earningPotential.toLocaleString()}\n- **MRR**: $${nextState.metrics.mrr.toLocaleString()}\n- **生存几率**: ${(sRate * 100).toFixed(1)}%\n- **技术债**: ${nextState.techDebt.toFixed(1)}%\n`
                 
                 nextState.assets.journal = nextJournal
                 set({ sandboxState: nextState })
+
+                // Asynchronously sync the updated state to the database
+                import('@/app/actions/rehearsal').then(async ({ syncRehearsal }) => {
+                    await syncRehearsal(nextState.id, nextState);
+                }).catch(dbErr => {
+                    console.error("[DB] Failed to sync rehearsal state:", dbErr);
+                });
                 
                 // ANSI colors for report
                 const res = '\x1b[0m'
@@ -445,25 +543,61 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const s = get().sandboxState
                 if (!s) return
 
+                // Hydrate agents if empty
+                let currentAgents = s.agents;
+                if (!currentAgents || currentAgents.length === 0) {
+                    const tier = s.tier || get().userTier;
+                    const limits = TIER_LIMITS[tier];
+                    const seed = {
+                        mean: s.productVector,
+                        std: Array(14).fill(0.1) as Vector14D,
+                        weights: Array(14).fill(1.0) as Vector14D,
+                        outliers: []
+                    };
+                    const restoredPopulation = generatePopulation(seed, limits.maxAgents);
+                    currentAgents = runCollision(s.productVector, s.techDebt, restoredPopulation, s.metrics.earningPotential);
+                }
+
                 const nextVector = [...s.productVector] as Vector14D
                 nextVector[DIM[dim]] = Math.max(0, Math.min(1, value))
-                const updatedAgents = runCollision(nextVector, s.techDebt, s.agents, s.metrics.earningPotential)
+                const updatedAgents = runCollision(nextVector, s.techDebt, currentAgents, s.metrics.earningPotential)
                 const nextJournal = s.assets.journal + `\n> **[CMD]** Explicitly adjusted parameter \`${String(dim)}\` to \`${value.toFixed(2)}\` at T+${s.epoch}.\n`
 
-                set({
-                    sandboxState: {
-                        ...s,
-                        productVector: nextVector,
-                        agents: updatedAgents,
-                        assets: { ...s.assets, journal: nextJournal }
-                    }
-                })
+                const nextState = {
+                    ...s,
+                    productVector: nextVector,
+                    agents: updatedAgents,
+                    assets: { ...s.assets, journal: nextJournal }
+                };
+
+                set({ sandboxState: nextState })
+                
+                // Sync to DB
+                import('@/app/actions/rehearsal').then(async ({ syncRehearsal }) => {
+                    await syncRehearsal(nextState.id, nextState);
+                }).catch(console.error);
+
                 get().pushLine(`[CMD] Parameter ${dim} adjusted to ${value.toFixed(2)}`)
             },
 
             addFeature: async (description: string) => {
                 const s = get().sandboxState
                 if (!s) return
+
+                // Hydrate agents if empty
+                let currentAgents = s.agents;
+                if (!currentAgents || currentAgents.length === 0) {
+                    const tier = s.tier || get().userTier;
+                    const limits = TIER_LIMITS[tier];
+                    const seed = {
+                        mean: s.productVector,
+                        std: Array(14).fill(0.1) as Vector14D,
+                        weights: Array(14).fill(1.0) as Vector14D,
+                        outliers: []
+                    };
+                    const restoredPopulation = generatePopulation(seed, limits.maxAgents);
+                    currentAgents = runCollision(s.productVector, s.techDebt, restoredPopulation, s.metrics.earningPotential);
+                }
 
                 get().pushLine(`[SYSTEM] Analyzing feature logic: "${description}"`)
                 const perturbationResp = await scanSeed([`Feature impact: ${description}`], get().draftSpec)
@@ -477,19 +611,25 @@ export const useLemeoneStore = create<LemeoneStore>()(
                 const coreComplexity = (s.productVector[0] + s.productVector[1] + s.productVector[2] + s.productVector[3]) / 4
                 const featureDebtBump = 3.0 * lambda * (0.5 + coreComplexity)
 
-                const updatedAgents = runCollision(nextVector, s.techDebt + featureDebtBump, s.agents, s.metrics.earningPotential)
+                const updatedAgents = runCollision(nextVector, s.techDebt + featureDebtBump, currentAgents, s.metrics.earningPotential)
 
                 const nextJournal = s.assets.journal + `\n> **[CMD]** Added new feature: "${description}" at T+${s.epoch}. (Tech Debt +${featureDebtBump.toFixed(1)}%)\n`
 
-                set({
-                    sandboxState: {
-                        ...s,
-                        productVector: nextVector,
-                        agents: updatedAgents,
-                        techDebt: s.techDebt + featureDebtBump,
-                        assets: { ...s.assets, journal: nextJournal }
-                    }
-                })
+                const nextState = {
+                    ...s,
+                    productVector: nextVector,
+                    agents: updatedAgents,
+                    techDebt: s.techDebt + featureDebtBump,
+                    assets: { ...s.assets, journal: nextJournal }
+                };
+
+                set({ sandboxState: nextState })
+
+                // Sync to DB
+                import('@/app/actions/rehearsal').then(async ({ syncRehearsal }) => {
+                    await syncRehearsal(nextState.id, nextState);
+                }).catch(console.error);
+
                 get().pushLine(`[CMD] Feature "${description}" integrated. TechDebt +${featureDebtBump.toFixed(1)}%`)
             },
 

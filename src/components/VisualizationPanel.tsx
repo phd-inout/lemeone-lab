@@ -108,6 +108,14 @@ export default function VisualizationPanel() {
                                 <DNABar label="Social" value={sandboxState?.productVector[7] || 0} color="text-green-400" />
                                 <DNABar label="Consistency" value={sandboxState?.productVector[8] || 0} color="text-green-400" />
                             </div>
+
+                            <div className="space-y-3">
+                                <h3 className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">Defenses (D10-D13)</h3>
+                                <DNABar label="Barriers" value={sandboxState?.productVector[9] || 0} color="text-purple-400" />
+                                <DNABar label="Ecosystem" value={sandboxState?.productVector[10] || 0} color="text-purple-400" />
+                                <DNABar label="Network Effect" value={sandboxState?.productVector[11] || 0} color="text-purple-400" />
+                                <DNABar label="Tech Curve" value={sandboxState?.productVector[12] || 0} color="text-purple-400" />
+                            </div>
                             
                             <div className="space-y-3">
                                 <h3 className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">GTM (D14)</h3>

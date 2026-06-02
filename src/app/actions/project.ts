@@ -69,7 +69,11 @@ export async function loadLatestRehearsalAction(projectId: string): Promise<any 
 
         if (!rehearsal) return null;
 
-        // Note: agents are not persisted, frontend must handle re-hydration or starting without agents
+        const parsedAssets = rehearsal.assets ? JSON.parse(rehearsal.assets as string) : {};
+        const metadata = parsedAssets.__metadata || {};
+        delete parsedAssets.__metadata; // Keep the standard assets clean
+
+        // Note: agents are not persisted, frontend handles re-hydration
         return {
             id: rehearsal.id,
             projectId: rehearsal.projectId,
@@ -78,10 +82,24 @@ export async function loadLatestRehearsalAction(projectId: string): Promise<any 
             currentStage: rehearsal.currentStage,
             metrics: {
                 earningPotential: rehearsal.cash,
-                // other metrics are not fully stored per row yet, relying on historyJson 
             },
             productVector: rehearsal.productVector ? JSON.parse(rehearsal.productVector as string) : [],
-            assets: rehearsal.assets ? JSON.parse(rehearsal.assets as string) : {},
+            assets: parsedAssets,
+            history: rehearsal.historyJson ? JSON.parse(rehearsal.historyJson as string) : [],
+            
+            // Metadata unpacked from JSON storage
+            teamSize: metadata.teamSize || 'STARTUP',
+            userARPU: metadata.userARPU || 45,
+            industryId: metadata.industryId || null,
+            industryName: metadata.industryName || null,
+            industryBaselineARPU: metadata.industryBaselineARPU || 45,
+            monetization: metadata.monetization || {
+                model: 'SUBSCRIPTION',
+                hardwarePrice: 0,
+                monthlyFee: metadata.userARPU || 45
+            },
+            seedText: metadata.seedText || 'Restored Project',
+            techDebtLambda: metadata.techDebtLambda || 0.5,
         };
     } catch (e) {
         console.error("[DB] Failed to load rehearsal:", e);

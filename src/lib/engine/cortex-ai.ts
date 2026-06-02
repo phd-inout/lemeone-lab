@@ -244,6 +244,14 @@ ${industryListStr}
       terminalOutput += `\n\n\x1b[33m[SYS_AUDIT] 检测到逻辑断裂带: ${highUncertaintyDims.join(', ')} 信息不足。正在生成定向追问...\x1b[0m`;
     }
 
+    // Strategic priority sorting for questions, ensuring critical dimensions (D5 -> D6 -> D14) bubble to the top
+    const sortedQuestions = (parsed.questions || []).sort((a: any, b: any) => {
+      const priorityMap: Record<string, number> = { 'D5': 3, 'D6': 2, 'D14': 1 };
+      const priorityA = priorityMap[a.dimension] || 0;
+      const priorityB = priorityMap[b.dimension] || 0;
+      return priorityB - priorityA;
+    });
+
     return {
       selected_industry_id: parsed.selected_industry_id,
       monetization: parsed.monetization || { model: 'SUBSCRIPTION', hardware_price: 0, monthly_fee: 45 },
@@ -251,7 +259,7 @@ ${industryListStr}
       seed,
       industryCtx: parsed.selected_industry_id ? loadIndustryProfile(parsed.selected_industry_id) : undefined,
       terminalOutput,
-      questions: (parsed.questions || []).slice(0, 1), // Enforce 1 question limit
+      questions: sortedQuestions.slice(0, 1), // Enforce 1 question limit, getting the highest priority one
       isComplete: finalIsComplete,
       draftContent: parsed.draftContent || currentDraft
     }
