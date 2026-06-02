@@ -14,6 +14,8 @@ const {
 } = require("@modelcontextprotocol/sdk/types.js");
 const fs = require('fs');
 const path = require('path');
+const drta = require('drta-gravity-engine');
+const { v4: uuidv4 } = require('uuid');
 const { collectEvidence } = require('../src/lib/engine/codebase-auditor.js');
 const { strategicCodeAudit } = require('../src/lib/engine/cortex-ai.ts');
 
@@ -58,7 +60,7 @@ function loadIndustry(text) {
     };
 }
 
-// 3. DRTA MATH ENGINE (Internal Lite)
+// 3. DRTA MATH ENGINE (High-Fidelity SWARM Engine)
 function simulateStep(state) {
     const { productVector, techDebt, techDebtLambda, teamSize, previousActiveUsers } = state;
     
@@ -72,18 +74,43 @@ function simulateStep(state) {
     const techDebtBump = 0.5 * lambda * (0.5 + coreComplexity) * teamCoordinationTax;
     const nextTechDebt = techDebt + techDebtBump;
 
-    const entryEase = productVector[4];
-    const techPenalty = Math.exp(-lambda * (nextTechDebt / 100));
-    const awareness = productVector[13] || 0.1;
-    
-    const conversionRate = Math.min(0.1, 0.05 * entryEase * techPenalty);
-    const newUsers = Math.floor(100000 * awareness * conversionRate * 4); // 4 weeks
-    
+    // High-Fidelity 10k Multi-Agent Population Generation
+    const limits = { maxAgents: 10000 };
+    const seed = {
+        mean: productVector,
+        std: Array(14).fill(0.1),
+        weights: Array(14).fill(1.0),
+        outliers: []
+    };
+    const population = drta.generatePopulation(seed, limits.maxAgents, uuidv4);
+
+    // 14D DRTA Swarm Collision
+    const updatedAgents = drta.runCollision(productVector, nextTechDebt, population, previousActiveUsers);
+
+    // Emergent Metrics Calculation
+    const monetization = state.monetization || {
+        model: state.monetizationModel || 'SUBSCRIPTION',
+        hardwarePrice: state.hardwarePrice || 0,
+        monthlyFee: state.monthlyFee || state.userARPU || 45
+    };
+    const metrics = drta.calculateMetrics(
+        updatedAgents,
+        productVector,
+        nextTechDebt,
+        teamSize || 'STARTUP',
+        previousActiveUsers,
+        monetization
+    );
+
     return {
         epoch_reached: 4,
         techDebt: nextTechDebt,
-        activeUsers: previousActiveUsers + newUsers,
-        survivalRate: Math.min(1, 0.4 + (1.0 - nextTechDebt/200))
+        activeUsers: metrics.activePaidUserCount,
+        avgResonance: metrics.avgResonance,
+        survivalRate: metrics.survivalRate,
+        mrr: metrics.mrr,
+        conversionRate: metrics.conversionRate,
+        earningPotential: metrics.earningPotential
     };
 }
 
