@@ -1,10 +1,12 @@
 /**
  * Lemeone Business Intelligence - CLI Simulation Script
- * Standalone implementation of the DRTA math engine for Skill usage.
+ * Full-scale integration of the DRTA 2.5 math engine.
  */
 
 const fs = require('fs');
 const path = require('path');
+const drta = require('drta-gravity-engine');
+const { v4: uuidv4 } = require('uuid');
 
 // 14D Dimension Constants
 const DIM = {
@@ -14,17 +16,6 @@ const DIM = {
     BARRIERS: 9, ECOSYSTEM: 10, NETWORK: 11, CURVE: 12,
     AWARENESS: 13
 };
-
-function calculateCosineSimilarity(v1, v2) {
-    let dotProduct = 0, mag1 = 0, mag2 = 0;
-    for (let i = 0; i < 14; i++) {
-        dotProduct += (v1[i] * v2[i]);
-        mag1 += (v1[i] * v1[i]);
-        mag2 += (v2[i] * v2[i]);
-    }
-    const den = Math.sqrt(mag1) * Math.sqrt(mag2);
-    return den === 0 ? 0 : Math.min(1, dotProduct / den);
-}
 
 function simulateStep(state) {
     const { productVector, techDebt, techDebtLambda, teamSize, previousActiveUsers } = state;
@@ -36,26 +27,42 @@ function simulateStep(state) {
     const techDebtBump = 0.5 * lambda * (0.5 + coreComplexity) * teamCoordinationTax;
     const nextTechDebt = techDebt + techDebtBump;
 
-    // 2. Simple Resonance Estimation
-    // In a real collision we'd have 10k agents. Here we simulate the mean.
-    const cosSim = 0.85; // Heuristic mean for a decent match
-    const rCos = Math.pow(cosSim, 2);
-    const avgResonance = rCos * 0.9; // Penalty for distribution
+    // 2. High-Fidelity 10k Multi-Agent Population Generation
+    const limits = { maxAgents: 10000 };
+    const seed = {
+        mean: productVector,
+        std: Array(14).fill(0.1),
+        weights: Array(14).fill(1.0),
+        outliers: []
+    };
+    const population = drta.generatePopulation(seed, limits.maxAgents, uuidv4);
 
-    // 3. User Growth (Approximate 4-week step)
-    const awareness = productVector[DIM.AWARENESS];
-    const entryEase = productVector[DIM.ENTRY];
-    const techPenalty = Math.exp(-lambda * (nextTechDebt / 100));
-    
-    const conversionRate = Math.min(0.1, 0.05 * entryEase * techPenalty);
-    const newUsers = Math.floor(100000 * awareness * conversionRate * 4); // 4 weeks
-    const nextActiveUsers = previousActiveUsers + newUsers;
+    // 3. Real 14D DRTA Collision
+    const updatedAgents = drta.runCollision(productVector, nextTechDebt, population, previousActiveUsers);
+
+    // 4. Emergent Metrics Calculation
+    const monetization = state.monetization || {
+        model: state.monetizationModel || 'SUBSCRIPTION',
+        hardwarePrice: state.hardwarePrice || 0,
+        monthlyFee: state.monthlyFee || state.userARPU || 45
+    };
+    const metrics = drta.calculateMetrics(
+        updatedAgents,
+        productVector,
+        nextTechDebt,
+        teamSize || 'STARTUP',
+        previousActiveUsers,
+        monetization
+    );
 
     return {
         techDebt: nextTechDebt,
-        activeUsers: nextActiveUsers,
-        avgResonance: avgResonance,
-        survivalRate: Math.min(1, 0.4 + avgResonance * 0.5 - (nextTechDebt / 200))
+        activeUsers: metrics.activePaidUserCount,
+        avgResonance: metrics.avgResonance,
+        survivalRate: metrics.survivalRate,
+        mrr: metrics.mrr,
+        conversionRate: metrics.conversionRate,
+        earningPotential: metrics.earningPotential
     };
 }
 
